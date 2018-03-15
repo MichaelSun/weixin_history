@@ -173,11 +173,11 @@ module.exports = {
 };
 
 function cmpTime(time1, time2) {
-   var data1 = time1.replace(/-/g, '');
-   var data2 = time2.replace(/-/g, '');
+   var data1 = time1.split('-');
+   var data2 = time2.split('-');
 
    console.log(data1, '    ',  data2);
-   return (parseInt(data1) - parseInt(data2)) % 70;
+   return (parseInt(data1[0]) - parseInt(data2[0])) * 365 + (parseInt(data1[1]) - parseInt(data2[1])) * 30 + (parseInt(data1[2]) - parseInt(data2[2]));
 };
 
 function saveDataToFileWithAppend(filename, str) {

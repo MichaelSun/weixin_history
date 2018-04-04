@@ -30,18 +30,19 @@ module.exports = {
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				var endLine = 'EndSessionIndex=' + splitedStr[1];
-				var hasContext = hasContextBetweenSession('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
-				//dumpInfo('end session : ' + splitedStr[1]);
+				var visitContext = hasContextBetweenSession('./visitLog/GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				dumpInfo('visitContext = ' + JSON.stringify(visitContext));
 
 				saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', endLine);
-				if (hasContext) {
+				if (visitContext.hasContext) {
+					var returnData = 'findKeyWord||' + visitContext.contextMD5 + "||" + visitContext.keyword
 					return {
 						response: {
 							statusCode: 200,
 							header: {
 								'content-type': 'text/html'
 							},
-							body: 'findKeyWord'
+							body: returnData
 						}
 					};
 				} else {
@@ -64,9 +65,6 @@ module.exports = {
 
 
 	* beforeSendResponse(requestDetail, responseDetail) {
-		var util = require("util")
-		var keyWordArray = ['福利', '红包', '现金', '抽奖', '互动'];
-
 		var responseBody = responseDetail.response.body.toString(); //转换变量为string
 		if (/mp\/profile_ext\?action=urlcheck/i.test(requestDetail.url) ||
 			/mp\/profile_ext\?action=home/i.test(requestDetail.url)) { //当链接地址为公众号历史消息页面时(第二种页面形式)
@@ -126,6 +124,8 @@ module.exports = {
 			return null;
 		} else if (/s\?__biz/i.test(requestDetail.url) || /mp\/rumor/i.test(requestDetail.url)) { //当链接地址为公众号文章时（rumor这个地址是公众号文章被辟谣了）
 			dumpInfo('entry into getWxPost branch');
+			var util = require("util")
+			var keyWordArray = loadKeyWord();
 			var newResponse = Object.assign({}, responseDetail.response);
 			try {
 				//这里采用同步请求的方式，get请求完了之后就进入 callback()
@@ -136,37 +136,46 @@ module.exports = {
 				var chineseContextRe = /[^\u4E00-\u9FA5]/g;
 				var body = responseDetail.response.body.toString();
 				var dumpStr = body.replace(chineseContextRe, '');
-				dumpInfo('getWxPost Message Body :');
 				dumpInfo(dumpStr);
 
 				var find = false;
-				var findKey = '';
+				var findKey = [];
 				for (key in keyWordArray) {
 					if (dumpStr.indexOf(keyWordArray[key]) != -1) {
 						find = true;
-						findKey += keyWordArray[key] + '  ';
+						findKey.push(keyWordArray[key]);
 					}
 				}
 
 				var util = require('util');
 				if (find) {
+					md5 = require('js-md5');
 					var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 找到了关键字: %s :)';
+					var log = new VisitLogClass();
+					log.publishTime = getMsgPublishTime(body);
+					log.name = getName(body);
+					log.title = getMsgTitle(body);
+					log.keyword = findKey;
+					var curTime = new Date();
+					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
+					log.searchIndex = md5(log.publishTime + log.name + log.title);
+
 					dumpInfo('');
 					dumpInfo('');
-					dumpInfo(util.format(temp, getMsgPublishTime(body), getName(body), getMsgTitle(body), findKey));
+					dumpInfo(JSON.stringify(log));
 					dumpInfo('');
 					dumpInfo('');
 
 					//save into file GZHInformation.txt
 					var date = new Date();
 					var dateStr = date.pattern("yyyy-MM-dd");
-					var log = util.format(temp, getMsgPublishTime(body), getName(body), getMsgTitle(body), findKey) + ', URL : ' + requestDetail.url;
+					log.url = requestDetail.url;
 					if (cmpTime(dateStr, getMsgPublishTime(body)) < 3) {
-						saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', log);
+						saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', JSON.stringify(log));
 					} else {
-						log = log + '   , ((此条公众号信息已经超过3天有效期))'
+						log.title = log.title + '   , ((此条公众号信息已经超过3天有效期))'
 					}
-					saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', log);
+					saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', JSON.stringify(log));
 				} else {
 					var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 没有找到关键字:(';
 					dumpInfo('');
@@ -208,6 +217,38 @@ module.exports = {
 
 };
 
+function VisitLogClass() {
+	this.publishTime = '';
+	this.name = '';
+	this.title = '';
+	this.keyword = [];
+	this.url = '';
+	this.searchTime = '';
+	this.searchIndex = '';
+}
+
+function VisitContext() {
+	this.hasContext = false;
+	this.contextMD5 = '';
+	this.keyword = [];
+}
+
+function loadKeyWord() {
+	var filename = './config/keyword.txt';
+	const LineByLine = require('./readlinesyn');
+	var liner = new LineByLine();
+
+	liner.open(filename);
+	var theline = '';
+	while (!liner._EOF) {
+		theline += liner.next();
+	}
+
+	liner.close();
+
+	return theline.split(',');
+}
+
 function cmpTime(time1, time2) {
 	var data1 = time1.split('-');
 	var data2 = time2.split('-');
@@ -221,8 +262,9 @@ function hasContextBetweenSession(filename, sessionIndex) {
 
 	var filename = filename;
 	var liner = new LineByLine();
-	var hasContext = false;
 	var findBeginIndex = false;
+	var visitContext = new VisitContext();
+	visitContext.hasContext = false;
 
 	liner.open(filename);
 	var theline;
@@ -232,11 +274,16 @@ function hasContextBetweenSession(filename, sessionIndex) {
 			findBeginIndex = true;
 		} else if (('EndSessionIndex=' + sessionIndex) == theline) {
 			findBeginIndex = false;
-			hasContext = false
+			visitContext.hasContext = false;
+			visitContext.keyword = [];
+			visitContext.contextMD5 = '';
 		} else {
 			if (theline.indexOf('SessionIndex') == -1 && theline.indexOf('mp.weixin.qq.com') != -1) {
 				if (findBeginIndex) {
-					hasContext = true;
+					visitContext.hasContext = true;
+					var visitLog = JSON.parse(theline);
+					visitContext.contextMD5 = visitLog.searchIndex;
+					visitContext.keyword = '文章<<' + visitLog.title + '>>找到关键字:' + visitLog.keyword;
 				}
 			}
 		}
@@ -244,8 +291,9 @@ function hasContextBetweenSession(filename, sessionIndex) {
 	}
 
 	liner.close();
+	console.log('visitContext = ' + JSON.stringify(visitContext));
 
-	return hasContext;
+	return visitContext;
 };
 
 function hasContextBetweenBeginAndEnd(filename, sessionIndex) {

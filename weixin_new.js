@@ -1,3 +1,30 @@
+var currentPaperVisitLog = './visitLog/currentPaperVisitLog.txt';
+
+var log4js = require('log4js');
+log4js.configure({
+	appenders: {
+		ruleConsole: {
+			type: 'console'
+		},
+		ruleFile: {
+			type: 'dateFile',
+			filename: 'logs/weixin_',
+			pattern: 'yyyy-MM-dd.log',
+			maxLogSize: 10 * 1000 * 1000,
+			numBackups: 3,
+			alwaysIncludePattern: true
+		}
+	},
+
+	categories: {
+		default: {
+			appenders: ['ruleConsole', 'ruleFile'],
+			level: 'info'
+		}
+	}
+});
+var logger = log4js.getLogger('normal');
+
 module.exports = {
 
 	summary: 'Michael Sun Weixin histroy rule',
@@ -10,11 +37,15 @@ module.exports = {
 		//dumpInfo("[[dumpInfo]] " + requestDetail.url);
 		if (requestDetail.requestOptions.hostname == 'sgqweixin') {
 			if (requestDetail.requestOptions.path.indexOf('begin') != -1) {
+				saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				var beginLine = 'BeginSessionIndex=' + splitedStr[1];
+				dumpInfo('    ');
+				dumpInfo('    ');
+				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  BEGIN SESSION ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
 				saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', beginLine);
-				//dumpInfo('begin session : ' + splitedStr[1]);
+				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
 				return {
 					response: {
@@ -30,10 +61,18 @@ module.exports = {
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				var endLine = 'EndSessionIndex=' + splitedStr[1];
-				var visitContext = hasContextBetweenSession('./visitLog/GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				var visitContext = hasContextBetweenSession(currentPaperVisitLog, splitedStr[1]);
 				dumpInfo('visitContext = ' + JSON.stringify(visitContext));
 
 				saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', endLine);
+				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
+
+				if (!visitContext.hasContext) {
+					dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END SESSION ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
+					dumpInfo('    ');
+					dumpInfo('    ');
+				}
+
 				if (visitContext.hasContext) {
 					var returnData = 'findKeyWord||' + visitContext.contextMD5 + "||" + visitContext.keyword
 					return {
@@ -55,7 +94,44 @@ module.exports = {
 							body: 'notFindKeyWord'
 						}
 					};
+				}
+			} else if (requestDetail.requestOptions.path.indexOf('wxIndex') != -1) {
+				var splitedStr = requestDetail.requestOptions.path.split('?');
+				var date = new Date();
+				splitedStr = splitedStr[1].split('&');
+				var wxIndex = splitedStr[0].split('=')[1];
+				var customIndex = splitedStr[1].split('=')[1];
+				dumpInfo('微信Index = ' + wxIndex + ", 自生成索引 = " + customIndex);
+				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
+				//save commit log object
+				var visitContext = hasContextBetweenSession(currentPaperVisitLog, splitedStr[1]);
+				saveCommitObjList('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitContext.keyword);
+
+				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END SESSION ' + splitedStr[0] + " <<<<<<<<<<<<<<<<<<<<<<<");
+				dumpInfo('    ');
+				dumpInfo('    ');
+
+				if (wxIndex == '-') {
+					return {
+						response: {
+							statusCode: 200,
+							header: {
+								'content-type': 'text/html'
+							},
+							body: 'failed'
+						}
+					};
+				} else {
+					return {
+						response: {
+							statusCode: 200,
+							header: {
+								'content-type': 'text/html'
+							},
+							body: 'success'
+						}
+					};
 				}
 			}
 		}
@@ -171,9 +247,12 @@ module.exports = {
 					var dateStr = date.pattern("yyyy-MM-dd");
 					log.url = requestDetail.url;
 					if (cmpTime(dateStr, getMsgPublishTime(body)) < 3) {
-						saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', JSON.stringify(log));
+						var jsonlog = JSON.stringify(log);
+						saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', jsonlog);
+						saveDataToFile(currentPaperVisitLog, jsonlog);
 					} else {
 						log.title = log.title + '   , ((此条公众号信息已经超过3天有效期))'
+						saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
 					}
 					saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', JSON.stringify(log));
 				} else {
@@ -194,6 +273,7 @@ module.exports = {
 						log = log + '   , ((此条公众号信息已经超过3天有效期))'
 					}
 					saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', log);
+					saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
 				}
 
 				return {
@@ -233,6 +313,55 @@ function VisitContext() {
 	this.keyword = [];
 }
 
+function CommitLog() {
+	this.wxIndex = '';
+	this.commitPhoneMac = [];
+	this.keyword = [];
+	this.commit = [];
+}
+
+function CommitObjectList() {
+	this.listLength = 0;
+	this.logList = [];
+}
+
+function saveCommitObjList(filename, wxIndex, keyword) {
+	var fs = require('fs');
+
+	var commitObjList = new CommitObjectList();
+	var dataSync = JSON.stringify(new CommitObjectList());
+	try {
+		fs.statSync(filename);
+		dataSync = fs.readFileSync(filename, "utf8");
+		fs.unlinkSync(filename);
+	} catch (e) {
+		console.log(e);
+	}
+
+	commitObjList = JSON.parse(dataSync);
+	var hasInList = false;
+	for (var index in commitObjList.logList) {
+		if (commitObjList.logList[index].wxIndex == wxIndex) {
+			hasInList = true;
+			break;
+		}
+	}
+	if (!hasInList) {
+		var commitLog = new CommitLog();
+		commitLog.wxIndex = wxIndex;
+		commitLog.keyword = keyword;
+		commitObjList.logList.push(commitLog);
+		commitObjList.listLength = commitObjList.logList.length;
+	}
+
+	var options = {
+		encoding: 'utf8',
+		flag: 'a'
+	};
+	fs.writeFileSync(filename, JSON.stringify(commitObjList) + '\n', options);
+
+}
+
 function loadKeyWord() {
 	var filename = './config/keyword.txt';
 	const LineByLine = require('./readlinesyn');
@@ -258,86 +387,46 @@ function cmpTime(time1, time2) {
 };
 
 function hasContextBetweenSession(filename, sessionIndex) {
-	const LineByLine = require('./readlinesyn');
-
-	var filename = filename;
-	var liner = new LineByLine();
-	var findBeginIndex = false;
+	var fs = require('fs');
 	var visitContext = new VisitContext();
 	visitContext.hasContext = false;
-
-	liner.open(filename);
-	var theline;
-	while (!liner._EOF) {
-		theline = liner.next();
-		if (('BeginSessionIndex=' + sessionIndex) == theline) {
-			findBeginIndex = true;
-		} else if (('EndSessionIndex=' + sessionIndex) == theline) {
-			findBeginIndex = false;
-			visitContext.hasContext = false;
-			visitContext.keyword = [];
-			visitContext.contextMD5 = '';
-		} else {
-			if (theline.indexOf('SessionIndex') == -1 && theline.indexOf('mp.weixin.qq.com') != -1) {
-				if (findBeginIndex) {
-					visitContext.hasContext = true;
-					var visitLog = JSON.parse(theline);
-					visitContext.contextMD5 = visitLog.searchIndex;
-					visitContext.keyword = '文章<<' + visitLog.title + '>>找到关键字:' + visitLog.keyword;
-				}
-			}
-		}
-		//dumpInfo('find key = ' + hasContext + '     ' + theline + '      index = ' + sessionIndex);
+	var dataSync = fs.readFileSync(filename, "utf8");
+	var visitLog = JSON.parse(dataSync);
+	if (visitLog.searchIndex != '') {
+		visitContext.hasContext = true;
+		visitContext.contextMD5 = visitLog.searchIndex;
+		visitContext.keyword = '文章<<' + visitLog.title + '>>找到关键字:' + visitLog.keyword;
 	}
-
-	liner.close();
-	console.log('visitContext = ' + JSON.stringify(visitContext));
+	console.log('>>>>> VisitContext = ' + JSON.stringify(visitContext));
 
 	return visitContext;
-};
-
-function hasContextBetweenBeginAndEnd(filename, sessionIndex) {
-	var readline = require('readline');
-	var fs = require('fs');
-	var os = require('os');
-
-	var fRead = fs.createReadStream(filename);
-	var objReadline = readline.createInterface({
-		input: fRead,
-	});
-
-	var hasContext = false;
-	var findBeginIndex = false;
-	objReadline.on('line', (line) => {
-		console.log('>>>> read line = ' + line + ' <<<<');
-		if (('BeginSessionIndex=' + sessionIndex) == line) {
-			findBeginIndex = true;
-		} else if (('EndSessionIndex=' + sessionIndex) == line) {
-			findBeginIndex = false;
-		} else {
-			if (line.indexOf('SessionIndex') == -1) {
-				if (findBeginIndex) {
-					hasContext = true;
-				}
-			}
-		}
-	});
-
-	objReadline.on('close', () => {});
-	dumpInfo('has context = ' + hasContext);
-
-	return hasContext;
-};
+}
 
 function saveDataToFileWithAppend(filename, str) {
-	var fs = require("fs");
-	mkdir('./', 'visitLog')
-	fs.appendFile('./visitLog/' + filename, str + '\n', 'utf8', function(err) {
-		if (err) {
-			console.log(err);
-		}
-	});
+	// var fs = require("fs");
+	// mkdir('./', 'visitLog');
+	// fs.appendFile('./visitLog/' + filename, str + '\n', 'utf8', function(err) {
+	// 	if (err) {
+	// 		console.log(err);
+	// 	}
+	// });
+	logger.info(str);
 };
+
+function saveDataToFile(filename, str) {
+	var fs = require("fs");
+	try {
+		fs.statSync(filename);
+		fs.unlinkSync(filename);
+	} catch (e) {
+		console.log(e);
+	}
+	var options = {
+		encoding: 'utf8',
+		flag: 'a'
+	};
+	fs.writeFileSync(filename, str + '\n', options);
+}
 
 function getName(str) {
 	if (str != null) {
@@ -385,6 +474,7 @@ function getMsgPublishTime(str) {
 function dumpInfo(str) {
 	var infoHead = '[[DUMP INFO]] : ';
 	console.log(infoHead + str);
+	logger.info(str);
 };
 
 

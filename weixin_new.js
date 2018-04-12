@@ -64,6 +64,13 @@ module.exports = {
 				var visitContext = hasContextBetweenSession(currentPaperVisitLog, splitedStr[1]);
 				dumpInfo('visitContext = ' + JSON.stringify(visitContext));
 
+				var hasContainThisPaper = hasVisitThePaper('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', visitContext.contextMD5);
+				if (hasContainThisPaper) {
+					dumpInfo("this paper has been visited by custom Index = " + visitContext.contextMD5 + ", so skip this paper");
+					visitContext.hasContext = false;
+				}
+
+
 				saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', endLine);
 				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
@@ -105,8 +112,8 @@ module.exports = {
 				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
 				//save commit log object
-				var visitContext = hasContextBetweenSession(currentPaperVisitLog, splitedStr[1]);
-				saveCommitObjList('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitContext.keyword);
+				var visitLog = getLastMatchPaperContext(currentPaperVisitLog);
+				saveCommitObjList('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitLog.keyword, customIndex);
 
 				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END SESSION ' + splitedStr[0] + " <<<<<<<<<<<<<<<<<<<<<<<");
 				dumpInfo('    ');
@@ -133,6 +140,45 @@ module.exports = {
 						}
 					};
 				}
+			} else if (requestDetail.requestOptions.path.indexOf('loopFinish') != -1) {
+				var date = new Date();
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				dumpInfo('finish loop : ' + splitedStr[1]);
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: 'OK'
+					}
+				};
+			} else if (requestDetail.requestOptions.path.indexOf('phoneCommit') != -1) {
+				var date = new Date();
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				var message = handleCommitPhoneRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+
+				dumpInfo('   ');
+				dumpInfo('   ');
+				dumpInfo('====================================================');
+				dumpInfo('====================================================');
+				dumpInfo('=== Phone MAC : ' + splitedStr[1] + '====');
+				dumpInfo('=== commit message : ' + JSON.stringify(message) + '====');
+				dumpInfo('====================================================');
+				dumpInfo('====================================================');
+				dumpInfo('   ');
+				dumpInfo('   ');
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: JSON.stringify(message)
+					}
+				};
 			}
 		}
 
@@ -315,6 +361,7 @@ function VisitContext() {
 
 function CommitLog() {
 	this.wxIndex = '';
+	this.customIndex = '';
 	this.commitPhoneMac = [];
 	this.keyword = [];
 	this.commit = [];
@@ -325,7 +372,39 @@ function CommitObjectList() {
 	this.logList = [];
 }
 
-function saveCommitObjList(filename, wxIndex, keyword) {
+function CommitPhoneMessage() {
+	this.wxIndex = '';
+	this.message = '';
+	this.keyword = '';
+	this.noResource = true;
+}
+
+function hasVisitThePaper(filename, customIndex) {
+	if (customIndex == '') {
+		return false;
+	}
+
+	var fs = require('fs');
+	var commitObjList = new CommitObjectList();
+	var dataSync = JSON.stringify(new CommitObjectList());
+	try {
+		fs.statSync(filename);
+		dataSync = fs.readFileSync(filename, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+
+	commitObjList = JSON.parse(dataSync);
+	for (var index in commitObjList.logList) {
+		if (customIndex == commitObjList.logList[index].customIndex) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 	var fs = require('fs');
 
 	var commitObjList = new CommitObjectList();
@@ -350,6 +429,7 @@ function saveCommitObjList(filename, wxIndex, keyword) {
 		var commitLog = new CommitLog();
 		commitLog.wxIndex = wxIndex;
 		commitLog.keyword = keyword;
+		commitLog.customIndex = customIndex;
 		commitObjList.logList.push(commitLog);
 		commitObjList.listLength = commitObjList.logList.length;
 	}
@@ -360,6 +440,59 @@ function saveCommitObjList(filename, wxIndex, keyword) {
 	};
 	fs.writeFileSync(filename, JSON.stringify(commitObjList) + '\n', options);
 
+}
+
+function handleCommitPhoneRequest(filename, phoneMac) {
+	if (phoneMac == '') {
+		return new CommitPhoneMessage();
+	}
+
+	var fs = require('fs');
+
+	var commitObjList = new CommitObjectList();
+	var dataSync = JSON.stringify(new CommitObjectList());
+	try {
+		fs.statSync(filename);
+		dataSync = fs.readFileSync(filename, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+
+	commitObjList = JSON.parse(dataSync);
+	for (var index in commitObjList.logList) {
+		var hasCommit = false;
+		var phoneMacList = commitObjList.logList[index].commitPhoneMac;
+		for (var macIndex in phoneMacList) {
+			if (phoneMacList[macIndex] == phoneMac) {
+				hasCommit = true;
+			}
+		}
+		if (!hasCommit) {
+			commitObjList.logList[index].commitPhoneMac.push(phoneMac);
+			var message = new CommitPhoneMessage();
+			message.wxIndex = commitObjList.logList[index].wxIndex;
+			message.keyword = commitObjList.logList[index].keyword;
+			message.noResource = false;
+			if (commitObjList.logList[index].commit.length > 0) {
+				message.message = commitObjList.logList[index].commit[(commitObjList.logList[index].commitPhoneMac.length - 1) %
+					commitObjList.logList[index].commit.length];
+			}
+
+			dumpInfo('更新评论日志存储 for : ' + phoneMac);
+			var log = JSON.stringify(commitObjList);
+			fs.unlinkSync(filename);
+			var options = {
+				encoding: 'utf8',
+				flag: 'a'
+			};
+			fs.writeFileSync(filename, log + '\n', options);
+
+			dumpInfo("Phone : " + phoneMac + ", 将会评论微信文章: " + message.wxIndex + ', 评论内容:' + message.message);
+			return message;
+		}
+	}
+
+	return new CommitPhoneMessage();
 }
 
 function loadKeyWord() {
@@ -385,6 +518,14 @@ function cmpTime(time1, time2) {
 	console.log(data1, '    ', data2);
 	return (parseInt(data1[0]) - parseInt(data2[0])) * 365 + (parseInt(data1[1]) - parseInt(data2[1])) * 30 + (parseInt(data1[2]) - parseInt(data2[2]));
 };
+
+function getLastMatchPaperContext(filename) {
+	var fs = require('fs');
+	var dataSync = fs.readFileSync(filename, "utf8");
+	var visitLog = JSON.parse(dataSync);
+
+	return visitLog;
+}
 
 function hasContextBetweenSession(filename, sessionIndex) {
 	var fs = require('fs');

@@ -439,7 +439,6 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 		flag: 'a'
 	};
 	fs.writeFileSync(filename, JSON.stringify(commitObjList) + '\n', options);
-
 }
 
 function handleCommitPhoneRequest(filename, phoneMac) {

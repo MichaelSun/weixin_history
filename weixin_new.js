@@ -247,7 +247,6 @@ module.exports = {
 		} else if (/s\?__biz/i.test(requestDetail.url) || /mp\/rumor/i.test(requestDetail.url)) { //当链接地址为公众号文章时（rumor这个地址是公众号文章被辟谣了）
 			dumpInfo('entry into getWxPost branch');
 			var util = require("util")
-			var keyWordArray = loadKeyWord();
 			var newResponse = Object.assign({}, responseDetail.response);
 			try {
 				//这里采用同步请求的方式，get请求完了之后就进入 callback()
@@ -259,25 +258,17 @@ module.exports = {
 				var body = responseDetail.response.body.toString();
 				var dumpStr = body.replace(chineseContextRe, '');
 				dumpInfo(dumpStr);
-
-				var find = false;
-				var findKey = [];
-				for (key in keyWordArray) {
-					if (dumpStr.indexOf(keyWordArray[key]) != -1) {
-						find = true;
-						findKey.push(keyWordArray[key]);
-					}
-				}
+				var data = keyWordRuleCheck(dumpStr);
 
 				var util = require('util');
-				if (find) {
+				if (Object.keys(retData).length > 0) {
 					md5 = require('js-md5');
 					var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 找到了关键字: %s :)';
 					var log = new VisitLogClass();
 					log.publishTime = getMsgPublishTime(body);
 					log.name = getName(body);
 					log.title = getMsgTitle(body);
-					log.keyword = findKey;
+					log.keyword = data['keyword'];
 					var curTime = new Date();
 					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
 					log.searchIndex = md5(log.publishTime + log.name + log.title);
@@ -342,6 +333,42 @@ module.exports = {
 	},
 
 };
+
+function keyWordRuleCheck(str) {
+	var fs = require('fs');
+	var keyWordArray = loadKeyWord();
+	var find = false;
+	var retData = {};
+	var findKey = [];
+	var commitFile = [];
+	for (key in keyWordArray) {
+		if (str.indexOf(keyWordArray[key]) != -1) {
+			find = true;
+		}
+	}
+
+	if (find) {
+		var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
+		var keyFileMap = JSON.parse(contentText);
+		for (var secondKey in keyFileMap) {
+			if (str.indexOf(secondKey) != -1) {
+				findKey.push(secondKey);
+				if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
+					commitFile.push(keyFileMap[secondKey]);
+				}
+			}
+		}
+	}
+
+	if (findKey.length > 0 && commitFile.length > 0) {
+		retData['keyword'] = findKey;
+		retData['commit'] = commitFile;
+	}
+
+	dumpInfo("find key word file : " + JSON.stringify(retData));
+
+	return retData;
+}
 
 function VisitLogClass() {
 	this.publishTime = '';
@@ -417,6 +444,17 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 		console.log(e);
 	}
 
+	var commitFile = [];
+	var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
+	var keyFileMap = JSON.parse(contentText);
+	for (var key in keyword) {
+		if (keyFileMap[key] != null) {
+			if (commitFile.indexOf(keyFileMap[key]) == -1) {
+				commitFile.push(keyFileMap[key]);
+			}
+		}
+	}
+
 	commitObjList = JSON.parse(dataSync);
 	var hasInList = false;
 	for (var index in commitObjList.logList) {
@@ -430,6 +468,7 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 		commitLog.wxIndex = wxIndex;
 		commitLog.keyword = keyword;
 		commitLog.customIndex = customIndex;
+		commitLog.commit = commitFile;
 		commitObjList.logList.push(commitLog);
 		commitObjList.listLength = commitObjList.logList.length;
 	}

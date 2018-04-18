@@ -375,7 +375,7 @@ function CommitObjectList() {
 function CommitPhoneMessage() {
 	this.wxIndex = '';
 	this.message = '';
-	this.keyword = '';
+	this.keyword = [];
 	this.noResource = true;
 }
 

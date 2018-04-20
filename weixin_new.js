@@ -261,7 +261,7 @@ module.exports = {
 				var data = keyWordRuleCheck(dumpStr);
 
 				var util = require('util');
-				if (Object.keys(retData).length > 0) {
+				if (Object.keys(data).length > 0) {
 					md5 = require('js-md5');
 					var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 找到了关键字: %s :)';
 					var log = new VisitLogClass();
@@ -447,13 +447,15 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 	var commitFile = [];
 	var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
 	var keyFileMap = JSON.parse(contentText);
-	for (var key in keyword) {
-		if (keyFileMap[key] != null) {
-			if (commitFile.indexOf(keyFileMap[key]) == -1) {
-				commitFile.push(keyFileMap[key]);
+	// dumpInfo('[[saveCommitObjList]] keyFileMap = ' + JSON.stringify(keyFileMap));
+	for (var keyIndex in keyword) {
+		if (keyFileMap[keyword[keyIndex]] != null) {
+			if (commitFile.indexOf(keyFileMap[keyword[keyIndex]]) == -1) {
+				commitFile.push(keyFileMap[keyword[keyIndex]]);
 			}
 		}
 	}
+	dumpInfo('[[saveCommitObjList]] commitFile = ' + JSON.stringify(commitFile));
 
 	commitObjList = JSON.parse(dataSync);
 	var hasInList = false;
@@ -477,7 +479,11 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 		encoding: 'utf8',
 		flag: 'a'
 	};
-	fs.writeFileSync(filename, JSON.stringify(commitObjList) + '\n', options);
+
+	// dumpInfo('[[saveCommitObjList]] keyword = ' + JSON.stringify(keyword));
+	// dumpInfo('[[saveCommitObjList]] commitObjList = ' + JSON.stringify(commitObjList));
+
+	fs.writeFileSync(filename, JSON.stringify(commitObjList, 2, 2) + '\n', options);
 }
 
 function handleCommitPhoneRequest(filename, phoneMac) {
@@ -512,8 +518,12 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			message.keyword = commitObjList.logList[index].keyword;
 			message.noResource = false;
 			if (commitObjList.logList[index].commit.length > 0) {
-				message.message = commitObjList.logList[index].commit[(commitObjList.logList[index].commitPhoneMac.length - 1) %
-					commitObjList.logList[index].commit.length];
+				var messageArray = loadCommitToArray(commitObjList.logList[index].commit);
+				if (messageArray.length > 0) {
+					message.message = messageArray[(commitObjList.logList[index].commitPhoneMac.length - 1) % messageArray.length];
+				} else {
+					message.message = '';
+				}
 			}
 
 			dumpInfo('更新评论日志存储 for : ' + phoneMac);
@@ -531,6 +541,27 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 	}
 
 	return new CommitPhoneMessage();
+}
+
+function loadCommitToArray(commitFileList) {
+	var retCommitArray = [];
+	for (var i in commitFileList) {
+		var data = [];
+		var filename = './config/' + commitFileList[i];
+		try {
+			fs.statSync(filename);
+			data = fs.readFileSync(filename, "utf8");
+		} catch (e) {
+			console.log(e);
+		}
+
+		var commitItems = JSON.parse(data);
+		for (var j in commitItems) {
+			retCommitArray.push(commitItems[j]);
+		}
+	}
+
+	return retCommitArray;
 }
 
 function loadKeyWord() {

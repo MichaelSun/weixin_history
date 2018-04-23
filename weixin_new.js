@@ -44,7 +44,7 @@ module.exports = {
 				dumpInfo('    ');
 				dumpInfo('    ');
 				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  BEGIN SESSION ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
-				saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', beginLine);
+				// saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', beginLine);
 				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
 				return {
@@ -71,7 +71,7 @@ module.exports = {
 				}
 
 
-				saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', endLine);
+				// saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', endLine);
 				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
 				if (!visitContext.hasContext) {
@@ -163,8 +163,8 @@ module.exports = {
 				dumpInfo('   ');
 				dumpInfo('====================================================');
 				dumpInfo('====================================================');
-				dumpInfo('=== Phone MAC : ' + splitedStr[1] + '====');
-				dumpInfo('=== commit message : ' + JSON.stringify(message) + '====');
+				dumpInfo('=== Phone MAC : ' + splitedStr[1] + ' ====');
+				dumpInfo('=== commit message : ' + JSON.stringify(message) + ' ====');
 				dumpInfo('====================================================');
 				dumpInfo('====================================================');
 				dumpInfo('   ');
@@ -218,7 +218,6 @@ module.exports = {
 			}
 
 		} else if (/mp\/profile_ext\?action=getmsg/i.test(requestDetail.url)) { //第二种页面表现形式的向下翻页后的json
-			dumpInfo('entry into get msg branch');
 			try {
 				var json = JSON.parse(responseStr);
 				if (json.general_msg_list != []) {
@@ -229,23 +228,10 @@ module.exports = {
 			}
 			return null;
 		} else if (/mp\/getappmsgext/i.test(requestDetail.url)) { //当链接地址为公众号文章阅读量和点赞量时
-			dumpInfo('entry into getappmsgext branch');
-			try {
-				dumpInfo(responseStr);
-			} catch (e) {
-				return null;
-			}
 			return null;
 		} else if (/mp\/appmsg_comment/i.test(requestDetail.url)) { //当链接地址为公众号文章阅读量和点赞量时
-			dumpInfo('entry into appmsg_comment branch');
-			try {
-				dumpInfo(responseStr);
-			} catch (e) {
-				return null;
-			}
 			return null;
 		} else if (/s\?__biz/i.test(requestDetail.url) || /mp\/rumor/i.test(requestDetail.url)) { //当链接地址为公众号文章时（rumor这个地址是公众号文章被辟谣了）
-			dumpInfo('entry into getWxPost branch');
 			var util = require("util")
 			var newResponse = Object.assign({}, responseDetail.response);
 			try {
@@ -263,7 +249,7 @@ module.exports = {
 				var util = require('util');
 				if (Object.keys(data).length > 0) {
 					md5 = require('js-md5');
-					var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 找到了关键字: %s :)';
+					// var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 找到了关键字: %s :)';
 					var log = new VisitLogClass();
 					log.publishTime = getMsgPublishTime(body);
 					log.name = getName(body);
@@ -272,44 +258,43 @@ module.exports = {
 					var curTime = new Date();
 					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
 					log.searchIndex = md5(log.publishTime + log.name + log.title);
+					log.url = requestDetail.url;
 
+					//save into file GZHInformation.txt
+					var date = new Date();
+					var dateStr = date.pattern("yyyy-MM-dd");
+					if (cmpTime(dateStr, getMsgPublishTime(body)) < 3) {
+						saveDataToFile(currentPaperVisitLog, JSON.stringify(log));
+					} else {
+						log.title = log.title + '   , ((此条公众号信息已经超过3天有效期))'
+						saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
+					}
+					// saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', JSON.stringify(log));
 					dumpInfo('');
 					dumpInfo('');
 					dumpInfo(JSON.stringify(log));
 					dumpInfo('');
 					dumpInfo('');
-
-					//save into file GZHInformation.txt
-					var date = new Date();
-					var dateStr = date.pattern("yyyy-MM-dd");
-					log.url = requestDetail.url;
-					if (cmpTime(dateStr, getMsgPublishTime(body)) < 3) {
-						var jsonlog = JSON.stringify(log);
-						saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', jsonlog);
-						saveDataToFile(currentPaperVisitLog, jsonlog);
-					} else {
-						log.title = log.title + '   , ((此条公众号信息已经超过3天有效期))'
-						saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
-					}
-					saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', JSON.stringify(log));
 				} else {
 					var temp = '发布时间: %s, 公众号: [[%s]] 的文章 <<%s>> 没有找到关键字:(';
-					dumpInfo('');
-					dumpInfo('');
-					dumpInfo(util.format(temp, getMsgPublishTime(body), getName(body), getMsgTitle(body)));
-					dumpInfo('');
-					dumpInfo('');
-
+					// dumpInfo('');
+					// dumpInfo('');
+					// dumpInfo(util.format(temp, getMsgPublishTime(body), getName(body), getMsgTitle(body)));
+					// dumpInfo('');
+					// dumpInfo('');
 					var date = new Date();
 					var dateStr = date.pattern("yyyy-MM-dd");
-					var log = util.format(temp, getMsgPublishTime(body), getName(body), getMsgTitle(body)) + ', URL : ' + requestDetail.url;
-
+					var logStr = util.format(temp, getMsgPublishTime(body), getName(body), getMsgTitle(body)) + ', URL : ' + requestDetail.url;
 					if (cmpTime(dateStr, getMsgPublishTime(body)) < 3) {
 						//Do nothing
 					} else {
-						log = log + '   , ((此条公众号信息已经超过3天有效期))'
+						logStr = logStr + '   , ((此条公众号信息已经超过3天有效期))'
 					}
-					saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', log);
+					dumpInfo('');
+					dumpInfo('');
+					dumpInfo(logStr);
+					dumpInfo('');
+					dumpInfo('');
 					saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
 				}
 
@@ -527,7 +512,7 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			}
 
 			dumpInfo('更新评论日志存储 for : ' + phoneMac);
-			var log = JSON.stringify(commitObjList);
+			var log = JSON.stringify(commitObjList, 2, 2);
 			fs.unlinkSync(filename);
 			var options = {
 				encoding: 'utf8',
@@ -544,6 +529,7 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 }
 
 function loadCommitToArray(commitFileList) {
+	var fs = require('fs');
 	var retCommitArray = [];
 	for (var i in commitFileList) {
 		var data = [];
@@ -581,6 +567,10 @@ function loadKeyWord() {
 }
 
 function cmpTime(time1, time2) {
+	if (time1 == null || time2 == null) {
+		return 2;
+	}
+
 	var data1 = time1.split('-');
 	var data2 = time2.split('-');
 

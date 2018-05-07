@@ -1,0 +1,26 @@
+{
+  "name": "package.json",
+  "version": "1.0.0",
+  "description": "",
+  "main": "excelToJson.js",
+  "dependencies": {
+    "js-md5": "^0.7.3",
+    "js-xlsx": "^0.8.22",
+    "log4js": "^2.5.3",
+    "xlsx": "^0.12.9"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelSun/weixin_history.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MichaelSun/weixin_history/issues"
+  },
+  "homepage": "https://github.com/MichaelSun/weixin_history#readme"
+}

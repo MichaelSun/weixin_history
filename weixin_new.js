@@ -58,6 +58,7 @@ module.exports = {
 				};
 
 			} else if (requestDetail.requestOptions.path.indexOf('end') != -1) {
+				dumpInfo(requestDetail.url);
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				var endLine = 'EndSessionIndex=' + splitedStr[1];
@@ -72,7 +73,7 @@ module.exports = {
 
 
 				// saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', endLine);
-				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
+				// saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
 
 				if (!visitContext.hasContext) {
 					dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END SESSION ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
@@ -113,7 +114,7 @@ module.exports = {
 
 				//save commit log object
 				var visitLog = getLastMatchPaperContext(currentPaperVisitLog);
-				saveCommitObjList('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitLog.keyword, customIndex);
+				saveCommitObjList('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitLog.keyword, customIndex, visitLog.title);
 
 				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END SESSION ' + splitedStr[0] + " <<<<<<<<<<<<<<<<<<<<<<<");
 				dumpInfo('    ');
@@ -377,6 +378,7 @@ function CommitLog() {
 	this.commitPhoneMac = [];
 	this.keyword = [];
 	this.commit = [];
+	this.paperTitle = '';
 }
 
 function CommitObjectList() {
@@ -389,6 +391,7 @@ function CommitPhoneMessage() {
 	this.message = '';
 	this.keyword = [];
 	this.noResource = true;
+	this.paperTitle = '';
 }
 
 function hasVisitThePaper(filename, customIndex) {
@@ -416,7 +419,7 @@ function hasVisitThePaper(filename, customIndex) {
 	return false;
 }
 
-function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
+function saveCommitObjList(filename, wxIndex, keyword, customIndex, paperTitle) {
 	var fs = require('fs');
 
 	var commitObjList = new CommitObjectList();
@@ -456,6 +459,7 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex) {
 		commitLog.keyword = keyword;
 		commitLog.customIndex = customIndex;
 		commitLog.commit = commitFile;
+		commitLog.paperTitle = paperTitle;
 		commitObjList.logList.push(commitLog);
 		commitObjList.listLength = commitObjList.logList.length;
 	}
@@ -502,6 +506,7 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			message.wxIndex = commitObjList.logList[index].wxIndex;
 			message.keyword = commitObjList.logList[index].keyword;
 			message.noResource = false;
+			message.paperTitle = commitObjList.logList[index].paperTitle;
 			if (commitObjList.logList[index].commit.length > 0) {
 				var messageArray = loadCommitToArray(commitObjList.logList[index].commit);
 				if (messageArray.length > 0) {
@@ -511,7 +516,7 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 				}
 			}
 
-			dumpInfo('更新评论日志存储 for : ' + phoneMac);
+			//dumpInfo('更新评论日志存储 for : ' + phoneMac);
 			var log = JSON.stringify(commitObjList, 2, 2);
 			fs.unlinkSync(filename);
 			var options = {
@@ -520,7 +525,9 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			};
 			fs.writeFileSync(filename, log + '\n', options);
 
-			dumpInfo("Phone : " + phoneMac + ", 将会评论微信文章: " + message.wxIndex + ', 评论内容:' + message.message);
+			dumpInfo("Phone : (" + phoneMac + "), 将会评论微信文章: " + message.wxIndex 
+				+ ', 文章标题: ' + message.paperTitle
+				+ ', 评论内容: ' + message.message);
 			return message;
 		}
 	}

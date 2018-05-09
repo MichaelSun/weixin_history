@@ -23,7 +23,9 @@ log4js.configure({
 		}
 	}
 });
-var logger = log4js.getLogger('normal');
+ 
+
+ var logger = log4js.getLogger('normal');
 
 module.exports = {
 

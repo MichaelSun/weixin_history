@@ -182,6 +182,31 @@ module.exports = {
 						body: JSON.stringify(message)
 					}
 				};
+			} else if (requestDetail.requestOptions.path.indexOf('commitSuccess') != -1) {
+				dumpInfo('::::::: begin handle commit success');
+				var date = new Date();
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				var handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+
+				dumpInfo('   ');
+				dumpInfo('   ');
+				dumpInfo('====================================================');
+				dumpInfo('====================================================');
+				dumpInfo('=== Phone MAC : ' + splitedStr[1] + " 评论微信文章 " + (handleStatus ? "成功" : "失败") + ' ====');
+				dumpInfo('====================================================');
+				dumpInfo('====================================================');
+				dumpInfo('   ');
+				dumpInfo('   ');
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: "success"//(handleStatus ? "success" : "failed")
+					}
+				};
 			}
 		}
 
@@ -503,7 +528,9 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			}
 		}
 		if (!hasCommit) {
-			commitObjList.logList[index].commitPhoneMac.push(phoneMac);
+			var phoneMacWaiting = getPhoneMacStatusString(phoneMac, "waiting");
+			var hasItem = commitObjList.logList[index].commitPhoneMac.indexOf(phoneMacWaiting);
+			if (hasItem == -1) commitObjList.logList[index].commitPhoneMac.push(phoneMacWaiting);
 			var message = new CommitPhoneMessage();
 			message.wxIndex = commitObjList.logList[index].wxIndex;
 			message.keyword = commitObjList.logList[index].keyword;
@@ -527,14 +554,62 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			};
 			fs.writeFileSync(filename, log + '\n', options);
 
-			dumpInfo("Phone : (" + phoneMac + "), 将会评论微信文章: " + message.wxIndex 
-				+ ', 文章标题: ' + message.paperTitle
-				+ ', 评论内容: ' + message.message);
+			dumpInfo("Phone : (" + phoneMac + "  (change status TO waiting)), 将会评论微信文章: " + message.wxIndex +
+				', 文章标题: ' + message.paperTitle +
+				', 评论内容: ' + message.message);
 			return message;
 		}
 	}
 
 	return new CommitPhoneMessage();
+}
+function handleCommitPhoneSuccessRequest(filename, phoneMac) {
+	var fs = require('fs');
+
+	var commitObjList = new CommitObjectList();
+	var dataSync = JSON.stringify(new CommitObjectList());
+	try {
+		fs.statSync(filename);
+		dataSync = fs.readFileSync(filename, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+	var phoneMacWaiting = getPhoneMacStatusString(phoneMac, "waiting");
+	commitObjList = JSON.parse(dataSync);
+	for (var index in commitObjList.logList) {
+		var hasCommit = false;
+		var phoneMacList = commitObjList.logList[index].commitPhoneMac;
+		for (var macIndex in phoneMacList) {
+			if (phoneMacList[macIndex] == phoneMacWaiting) {
+				hasCommit = true;
+			}
+		}
+		if (hasCommit) {
+			replaceArrayItem(commitObjList.logList[index].commitPhoneMac, phoneMacWaiting, phoneMac);
+
+			var log = JSON.stringify(commitObjList, 2, 2);
+			fs.unlinkSync(filename);
+			var options = {
+				encoding: 'utf8',
+				flag: 'a'
+			};
+			fs.writeFileSync(filename, log + '\n', options);
+			return true;
+		}
+	}
+
+	return false
+}
+
+function replaceArrayItem(arryaObj, old, replace) {
+	var index = arryaObj.indexOf(old);
+	if (index > -1) {
+		arryaObj.splice(index, 1, replace);
+	}
+}
+
+function getPhoneMacStatusString(phoneMac, status) {
+	return phoneMac + "-" + status;
 }
 
 function loadCommitToArray(commitFileList) {

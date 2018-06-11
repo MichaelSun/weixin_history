@@ -23,9 +23,9 @@ log4js.configure({
 		}
 	}
 });
- 
 
- var logger = log4js.getLogger('normal');
+
+var logger = log4js.getLogger('normal');
 
 module.exports = {
 
@@ -183,7 +183,7 @@ module.exports = {
 					}
 				};
 			} else if (requestDetail.requestOptions.path.indexOf('commitSuccess') != -1) {
-				dumpInfo('::::::: begin handle commit success');
+				dumpInfo('::::::: begin handle commit success for URL = ' + requestDetail.requestOptions.path);
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				var handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
@@ -204,7 +204,7 @@ module.exports = {
 						header: {
 							'content-type': 'text/html'
 						},
-						body: "success"//(handleStatus ? "success" : "failed")
+						body: "success" //(handleStatus ? "success" : "failed")
 					}
 				};
 			}
@@ -349,18 +349,59 @@ module.exports = {
 
 function keyWordRuleCheck(str) {
 	var fs = require('fs');
-	var keyWordArray = loadKeyWord();
+	var keyWordObj = loadKeyWordToJsonObj();
 	var find = false;
 	var retData = {};
 	var findKey = [];
 	var commitFile = [];
-	for (key in keyWordArray) {
-		if (str.indexOf(keyWordArray[key]) != -1) {
-			find = true;
+
+	var findLog = [];
+
+	//find the search keyword first
+	var keywordSearch = keyWordObj['keywordSearch'];
+	var findSearchKey = false;
+	for (keyIndex in keywordSearch) {
+		if (str.indexOf(keywordSearch[keyIndex]) != -1) {
+			findSearchKey = true;
+			findLog.push(keywordSearch[keyIndex]);
 		}
 	}
 
+	if (!findSearchKey) {
+		dumpInfo("文章没有找到任何搜索关键字 : " + JSON.stringify(keywordSearch) + ", 直接返回");
+		return retData;
+	}
+
+
+	var keyWordArrayOne = keyWordObj['keywordCommitOne'];
+	var keyWordArrayTwo = keyWordObj['keywordCommitTwo'];
+	for (keyOneIndex in keyWordArrayOne) {
+		if (str.indexOf(keyWordArrayOne[keyOneIndex]) != -1) {
+			for (keyTwoIndex in keyWordArrayTwo) {
+				if (str.indexOf(keyWordArrayTwo[keyTwoIndex]) != -1) {
+					find = true;
+
+					findLog.push(keyWordArrayOne[keyOneIndex]);
+					findLog.push(keyWordArrayTwo[keyTwoIndex]);
+				}
+			}
+		}
+	}
+
+	var findCategory = false;
 	if (find) {
+		var keyCategory = keyWordObj['keywordCategory'];
+		for (keyIndex in keyCategory) {
+			if (str.indexOf(keyCategory[keyIndex]) != -1) {
+				findCategory = true;
+				str = str.split(keyCategory[keyIndex])[1];
+
+				findLog.push(keyCategory[keyIndex]);
+			}
+		}
+	}
+
+	if (findCategory) {
 		var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
 		var keyFileMap = JSON.parse(contentText);
 		for (var secondKey in keyFileMap) {
@@ -369,6 +410,8 @@ function keyWordRuleCheck(str) {
 				if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
 					commitFile.push(keyFileMap[secondKey]);
 				}
+
+				findLog.push(secondKey);
 			}
 		}
 	}
@@ -376,8 +419,12 @@ function keyWordRuleCheck(str) {
 	if (findKey.length > 0 && commitFile.length > 0) {
 		retData['keyword'] = findKey;
 		retData['commit'] = commitFile;
+	} else {
+		retData['keyword'] = ['万金油'];
+		retData['commit'] = ['d7b41ce4d57a99a3ab8932cb1f4dc862-log.txt'];
 	}
 
+	dumpInfo("find key word list : " + JSON.stringify(findLog));
 	dumpInfo("find key word file : " + JSON.stringify(retData));
 
 	return retData;
@@ -522,15 +569,44 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 	for (var index in commitObjList.logList) {
 		var hasCommit = false;
 		var phoneMacList = commitObjList.logList[index].commitPhoneMac;
+		var phoneMacFailed = getPhoneMacStatusString(phoneMac, "Failed");
 		for (var macIndex in phoneMacList) {
-			if (phoneMacList[macIndex] == phoneMac) {
+			if (phoneMacList[macIndex] == phoneMac || phoneMacList[macIndex] == phoneMacFailed) {
 				hasCommit = true;
 			}
 		}
 		if (!hasCommit) {
 			var phoneMacWaiting = getPhoneMacStatusString(phoneMac, "waiting");
-			var hasItem = commitObjList.logList[index].commitPhoneMac.indexOf(phoneMacWaiting);
-			if (hasItem == -1) commitObjList.logList[index].commitPhoneMac.push(phoneMacWaiting);
+			var phoneMacWaitingOne = getPhoneMacStatusString(phoneMac, "waitingOne");
+			var phoneMacWaitingTwo = getPhoneMacStatusString(phoneMac, "waitingTwo");
+			var phoneMacWaitingFailed = getPhoneMacStatusString(phoneMac, "Failed");
+
+			//var hasItem = commitObjList.logList[index].commitPhoneMac.indexOf(phoneMacWaiting);
+			//if (hasItem == -1) commitObjList.logList[index].commitPhoneMac.push(phoneMacWaiting);
+
+			var waitingLog = '';
+			var hasWaiting = false;
+			var currentStatus = '';
+			if (commitObjList.logList[index].commitPhoneMac.indexOf(phoneMacWaiting) != -1) {
+				currentStatus = 'waiting';
+				hasWaiting = true;
+			} else if (commitObjList.logList[index].commitPhoneMac.indexOf(phoneMacWaitingOne) != -1) {
+				currentStatus = 'waitingOne';
+				hasWaiting = true;
+			} else if (commitObjList.logList[index].commitPhoneMac.indexOf(phoneMacWaitingTwo) != -1) {
+				currentStatus = 'waitingTwo';
+				hasWaiting = true;
+			}
+			if (hasWaiting) {
+				var curPhoneMacStatus = getPhoneMacStatusString(phoneMac, currentStatus);
+				replaceArrayItem(commitObjList.logList[index].commitPhoneMac, curPhoneMacStatus, getPhoneMacStatusString(phoneMac, changeWaitStatus(currentStatus)));
+				waitingLog = changeWaitStatus(currentStatus);
+			} else {
+				commitObjList.logList[index].commitPhoneMac.push(phoneMacWaiting);
+				waitingLog = 'waiting';
+			}
+
+
 			var message = new CommitPhoneMessage();
 			message.wxIndex = commitObjList.logList[index].wxIndex;
 			message.keyword = commitObjList.logList[index].keyword;
@@ -554,7 +630,7 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			};
 			fs.writeFileSync(filename, log + '\n', options);
 
-			dumpInfo("Phone : (" + phoneMac + "  (change status TO waiting)), 将会评论微信文章: " + message.wxIndex +
+			dumpInfo("Phone : (" + phoneMac + "  (change status TO " + waitingLog + "), 将会评论微信文章: " + message.wxIndex +
 				', 文章标题: ' + message.paperTitle +
 				', 评论内容: ' + message.message);
 			return message;
@@ -563,6 +639,19 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 
 	return new CommitPhoneMessage();
 }
+
+function changeWaitStatus(currentStatus) {
+	if (currentStatus == 'waiting') {
+		return 'waitingOne';
+	} else if (currentStatus == 'waitingOne') {
+		return 'waitingTwo';
+	} else if (currentStatus == 'waitingTwo') {
+		return 'Failed';
+	}
+
+	return 'waiting';
+}
+
 function handleCommitPhoneSuccessRequest(filename, phoneMac) {
 	var fs = require('fs');
 
@@ -574,18 +663,24 @@ function handleCommitPhoneSuccessRequest(filename, phoneMac) {
 	} catch (e) {
 		console.log(e);
 	}
-	var phoneMacWaiting = getPhoneMacStatusString(phoneMac, "waiting");
+
 	commitObjList = JSON.parse(dataSync);
 	for (var index in commitObjList.logList) {
 		var hasCommit = false;
-		var phoneMacList = commitObjList.logList[index].commitPhoneMac;
-		for (var macIndex in phoneMacList) {
-			if (phoneMacList[macIndex] == phoneMacWaiting) {
+		var findIndex = -1;
+		for (var macIndex in commitObjList.logList[index].commitPhoneMac) {
+			if (commitObjList.logList[index].commitPhoneMac[macIndex].indexOf(phoneMac) != -1
+				&& commitObjList.logList[index].commitPhoneMac[macIndex] != phoneMac
+				&& commitObjList.logList[index].commitPhoneMac[macIndex] != getPhoneMacStatusString(phoneMac, "Failed")) {
 				hasCommit = true;
+				findIndex = macIndex;
 			}
 		}
+		//dumpInfo(">>>>>>>>>>>> hasCommit = " + hasCommit + ", findIndex = " + findIndex + ", data = " + commitObjList.logList[index].commitPhoneMac[findIndex]);
 		if (hasCommit) {
-			replaceArrayItem(commitObjList.logList[index].commitPhoneMac, phoneMacWaiting, phoneMac);
+			//replaceArrayItem(commitObjList.logList[index].commitPhoneMac, phoneMacWaiting, phoneMac);
+			commitObjList.logList[index].commitPhoneMac.splice(findIndex, 1, phoneMac);
+			//dumpInfo(">>>>> JSON = " + JSON.stringify(commitObjList.logList[index].commitPhoneMac, 2, 2));
 
 			var log = JSON.stringify(commitObjList, 2, 2);
 			fs.unlinkSync(filename);
@@ -593,6 +688,7 @@ function handleCommitPhoneSuccessRequest(filename, phoneMac) {
 				encoding: 'utf8',
 				flag: 'a'
 			};
+			//dumpInfo(log);
 			fs.writeFileSync(filename, log + '\n', options);
 			return true;
 		}
@@ -649,6 +745,28 @@ function loadKeyWord() {
 
 	return theline.split(',');
 }
+
+function loadKeyWordToJsonObj() {;
+	var data = readFileToString('./config/keyword.txt');
+	var retJson = JSON.parse(data);
+	return retJson;
+}
+
+/************ 基础函数  **********/
+function readFileToString(fileFullPath) {
+	var fs = require('fs');
+	var retData = "";
+	try {
+		fs.statSync(fileFullPath);
+		retData = fs.readFileSync(fileFullPath, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+
+	return retData;
+}
+
+/************ 基础函数  **********/
 
 function cmpTime(time1, time2) {
 	if (time1 == null || time2 == null) {
@@ -757,7 +875,7 @@ function getMsgPublishTime(str) {
 
 function dumpInfo(str) {
 	var infoHead = '[[DUMP INFO]] : ';
-	console.log(infoHead + str);
+	//console.log(infoHead + str);
 	logger.info(str);
 };
 

@@ -272,7 +272,8 @@ module.exports = {
 				var body = responseDetail.response.body.toString();
 				var dumpStr = body.replace(chineseContextRe, '');
 				dumpInfo(dumpStr);
-				var data = keyWordRuleCheck(dumpStr);
+				var paperTitle = getMsgTitle(body);
+				var data = keyWordRuleCheck(dumpStr, paperTitle);
 
 				var util = require('util');
 				if (Object.keys(data).length > 0) {
@@ -281,7 +282,7 @@ module.exports = {
 					var log = new VisitLogClass();
 					log.publishTime = getMsgPublishTime(body);
 					log.name = getName(body);
-					log.title = getMsgTitle(body);
+					log.title = paperTitle;
 					log.keyword = data['keyword'];
 					var curTime = new Date();
 					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
@@ -347,7 +348,7 @@ module.exports = {
 
 };
 
-function keyWordRuleCheck(str) {
+function keyWordRuleCheck(str, paperTitle) {
 	var fs = require('fs');
 	var keyWordObj = loadKeyWordToJsonObj();
 	var find = false;
@@ -412,6 +413,17 @@ function keyWordRuleCheck(str) {
 				}
 
 				findLog.push(secondKey);
+			}
+		}
+
+		if (findKey.length == 0 || commitFile.length == 0) {
+			for (var secondKey in keyFileMap) {
+				if (paperTitle.indexOf(secondKey) != -1) {
+					findKey.push(secondKey);
+					if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
+						commitFile.push(keyFileMap[secondKey]);
+					}
+				}
 			}
 		}
 	}
@@ -614,8 +626,18 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 			message.paperTitle = commitObjList.logList[index].paperTitle;
 			if (commitObjList.logList[index].commit.length > 0) {
 				var messageArray = loadCommitToArray(commitObjList.logList[index].commit);
+
+				var itemIndex = -1;
+				for (var macIndex in commitObjList.logList[index].commitPhoneMac) {
+					if (commitObjList.logList[index].commitPhoneMac[macIndex].indexOf(phoneMac) != -1) {
+						itemIndex = macIndex;
+					}
+				}
+
 				if (messageArray.length > 0) {
-					message.message = messageArray[(commitObjList.logList[index].commitPhoneMac.length - 1) % messageArray.length];
+					//message.message = messageArray[(commitObjList.logList[index].commitPhoneMac.length - 1) % messageArray.length];
+					itemIndex = rd(messageArray.length);
+					message.message = messageArray[itemIndex % messageArray.length];
 				} else {
 					message.message = '';
 				}
@@ -638,6 +660,10 @@ function handleCommitPhoneRequest(filename, phoneMac) {
 	}
 
 	return new CommitPhoneMessage();
+}
+
+function rd(range) {
+    return Math.floor(Math.random() * range);
 }
 
 function changeWaitStatus(currentStatus) {

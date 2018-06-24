@@ -473,6 +473,16 @@ function CommitLog() {
 	this.keyword = [];
 	this.commit = [];
 	this.paperTitle = '';
+	this.paperDiscoverTime = '';
+	this.paperDetailUrl = '';
+	this.commentPhoneDetailLogList = [];
+}
+
+function commentPhoneDetailLog() {
+	this.commentPhoneMac = '';
+	this.paperTitle = '';
+	this.commentContent = '';
+	this.commentTime = '';
 }
 
 function CommitObjectList() {
@@ -548,12 +558,17 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex, paperTitle) 
 		}
 	}
 	if (!hasInList) {
+		var date = new Date();
+		var fileDate = date.pattern("yyyy-MM-dd HH:mm:ss");
 		var commitLog = new CommitLog();
 		commitLog.wxIndex = wxIndex;
 		commitLog.keyword = keyword;
 		commitLog.customIndex = customIndex;
 		commitLog.commit = commitFile;
 		commitLog.paperTitle = paperTitle;
+		commitLog.paperDiscoverTime = fileDate;
+		commitLog.paperDetailUrl = 'https://mp.weixin.qq.com/s/' + wxIndex;
+
 		commitObjList.logList.push(commitLog);
 		commitObjList.listLength = commitObjList.logList.length;
 	}
@@ -562,9 +577,6 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex, paperTitle) 
 		encoding: 'utf8',
 		flag: 'a'
 	};
-
-	// dumpInfo('[[saveCommitObjList]] keyword = ' + JSON.stringify(keyword));
-	// dumpInfo('[[saveCommitObjList]] commitObjList = ' + JSON.stringify(commitObjList));
 
 	fs.writeFileSync(filename, JSON.stringify(commitObjList, 2, 2) + '\n', options);
 }
@@ -712,9 +724,14 @@ function handleCommitPhoneSuccessRequest(filename, phoneMac) {
 		}
 		//dumpInfo(">>>>>>>>>>>> hasCommit = " + hasCommit + ", findIndex = " + findIndex + ", data = " + commitObjList.logList[index].commitPhoneMac[findIndex]);
 		if (hasCommit) {
-			//replaceArrayItem(commitObjList.logList[index].commitPhoneMac, phoneMacWaiting, phoneMac);
 			commitObjList.logList[index].commitPhoneMac.splice(findIndex, 1, phoneMac);
-			//dumpInfo(">>>>> JSON = " + JSON.stringify(commitObjList.logList[index].commitPhoneMac, 2, 2));
+			var commentPhoneDetailLogObj = new commentPhoneDetailLog();
+			var date = new Date();
+			var fileDate = date.pattern("yyyy-MM-dd HH:mm:ss");
+			commentPhoneDetailLogObj.commentPhoneMac = phoneMac;
+			commentPhoneDetailLogObj.paperTitle = commitObjList.logList[index].paperTitle;
+			commentPhoneDetailLogObj.commentTime = fileDate;
+			commitObjList.logList[index].commentPhoneDetailLogList.push(commentPhoneDetailLogObj);
 
 			var log = JSON.stringify(commitObjList, 2, 2);
 			fs.unlinkSync(filename);

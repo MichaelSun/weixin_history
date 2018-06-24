@@ -268,9 +268,11 @@ module.exports = {
 				// var request = require('urllib-sync').request;
 				// var res = request(request_url + 'getWxPost.php');
 				// newResponse.body += res.data.toString();
-				var chineseContextRe = /[^\u4E00-\u9FA5]/g;
+				//var chineseContextRe = /[^\u4E00-\u9FA5]/g;
+				//var body = responseDetail.response.body.toString();
+				//var dumpStr = body.replace(chineseContextRe, '');
 				var body = responseDetail.response.body.toString();
-				var dumpStr = body.replace(chineseContextRe, '');
+				var dumpStr = weixinHTML_ZH(body);
 				dumpInfo(dumpStr);
 				var paperTitle = getMsgTitle(body);
 				var data = keyWordRuleCheck(dumpStr, paperTitle);
@@ -347,6 +349,12 @@ module.exports = {
 	},
 
 };
+
+function weixinHTML_ZH(html_content) {
+	var dumpStr = html_content.match('<div.*rich_media_content[^]*?<\/div>')[0];
+	var chineseContextRe = /[^\u4E00-\u9FA5]/g;
+	return dumpStr.replace(chineseContextRe, '');
+}
 
 function keyWordRuleCheck(str, paperTitle) {
 	var fs = require('fs');

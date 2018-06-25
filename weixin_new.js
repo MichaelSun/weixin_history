@@ -32,12 +32,17 @@ module.exports = {
 	summary: 'Michael Sun Weixin histroy rule',
 
 	* beforeSendRequest(requestDetail) {
-		//var util = require("util")
-		//dumpInfo(util.inspect(requestDetail.requestOptions,{depth:null}));
-		//dumpInfo(util.inspect(requestDetail,{depth:null}));
+		var wgetHostName = false;
+		dumpInfo(requestDetail.url);
+		dumpInfo(JSON.stringify(requestDetail.requestOptions, 2, 2));
+		if (requestDetail.requestOptions.headers['User-Agent'] == 'Wget') {
+			dumpInfo('Wget phone request, check path for Wget request');
+			if (requestDetail.requestOptions.path.indexOf('sgqweixin') != -1) {
+				wgetHostName = true;
+			}
+		}
 
-		//dumpInfo("[[dumpInfo]] " + requestDetail.url);
-		if (requestDetail.requestOptions.hostname == 'sgqweixin') {
+		if (requestDetail.requestOptions.hostname == 'sgqweixin' || wgetHostName == true) {
 			if (requestDetail.requestOptions.path.indexOf('begin') != -1) {
 				saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
 				var date = new Date();
@@ -205,6 +210,18 @@ module.exports = {
 							'content-type': 'text/html'
 						},
 						body: "success" //(handleStatus ? "success" : "failed")
+					}
+				};
+			} else if (requestDetail.requestOptions.path.indexOf('testCurl') != -1) {
+				dumpInfo(requestDetail.url);
+				dumpInfo("测试CURL网络通讯，CURL在移动端运行成功 >>>>>")
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: 'success'
 					}
 				};
 			}

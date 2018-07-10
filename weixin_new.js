@@ -13,6 +13,14 @@ log4js.configure({
 			maxLogSize: 10 * 1000 * 1000,
 			numBackups: 3,
 			alwaysIncludePattern: true
+		},
+		commentFile: {
+			type: 'dateFile',
+			filename: 'paper_visit/weixin_visit-',
+			pattern: 'yyyy-MM-dd.log',
+			maxLogSize: 10 * 1000 * 1000,
+			numBackups: 3,
+			alwaysIncludePattern: true
 		}
 	},
 
@@ -20,12 +28,16 @@ log4js.configure({
 		default: {
 			appenders: ['ruleConsole', 'ruleFile'],
 			level: 'info'
+		},
+		weixin_content: {
+			appenders: ['ruleConsole', 'commentFile'],
+			level: 'info'
 		}
 	}
 });
 
-
-var logger = log4js.getLogger('normal');
+var logger = log4js.getLogger('ruleFile');
+var log4js_papervisit = log4js.getLogger('weixin_content');
 
 module.exports = {
 
@@ -33,8 +45,8 @@ module.exports = {
 
 	* beforeSendRequest(requestDetail) {
 		var wgetHostName = false;
-		dumpInfo(requestDetail.url);
-		dumpInfo(JSON.stringify(requestDetail.requestOptions, 2, 2));
+		//dumpInfo(requestDetail.url);
+		//dumpInfo(JSON.stringify(requestDetail.requestOptions, 2, 2));
 		if (requestDetail.requestOptions.headers['User-Agent'] == 'Wget') {
 			dumpInfo('Wget phone request, check path for Wget request');
 			if (requestDetail.requestOptions.path.indexOf('sgqweixin') != -1) {
@@ -274,7 +286,29 @@ module.exports = {
 			return null;
 		} else if (/mp\/getappmsgext/i.test(requestDetail.url)) { //当链接地址为公众号文章阅读量和点赞量时
 			return null;
-		} else if (/mp\/appmsg_comment/i.test(requestDetail.url)) { //当链接地址为公众号文章阅读量和点赞量时
+		} else if (/mp\/appmsg_comment/i.test(requestDetail.url)) {
+			dumpInfo(requestDetail.url);
+			//dumpInfo("开始获取评论信息");
+
+			var commentBody = responseDetail.response.body.toString();
+			if (commentBody != "") {
+				var data = JSON.parse(commentBody);
+				if (data != null) {
+					var commentList = data['elected_comment'];
+					if (commentList != null && commentList.length > 0) {
+						for (var objIndex in commentList) {
+							var content = commentList[objIndex]['content'];
+							if (content != null) {
+								log4js_papervisit.info("Comments=" + content);
+							}
+						}
+					}
+				}
+			}
+			//log4js_papervisit.info(">>>>> END one paper visit <<<<<");
+			//log4js_papervisit.info("    ");
+			//log4js_papervisit.info("    ");
+
 			return null;
 		} else if (/s\?__biz/i.test(requestDetail.url) || /mp\/rumor/i.test(requestDetail.url)) { //当链接地址为公众号文章时（rumor这个地址是公众号文章被辟谣了）
 			var util = require("util")
@@ -294,6 +328,13 @@ module.exports = {
 				var paperTitle = getMsgTitle(body);
 				var data = keyWordRuleCheck(dumpStr, paperTitle);
 
+				//begin save the paper info
+				log4js_papervisit.info("    ");
+				log4js_papervisit.info("    ");
+				log4js_papervisit.info("<<<<< BEGIN one paper visit >>>>>");
+				log4js_papervisit.info("Title=" + paperTitle);
+				log4js_papervisit.info("Content=" + dumpStr);
+
 				var util = require('util');
 				if (Object.keys(data).length > 0) {
 					md5 = require('js-md5');
@@ -307,6 +348,7 @@ module.exports = {
 					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
 					log.searchIndex = md5(log.publishTime + log.name + log.title);
 					log.url = requestDetail.url;
+					log4js_papervisit.info("Keyword=" + JSON.stringify(log.keyword));
 
 					//save into file GZHInformation.txt
 					var date = new Date();

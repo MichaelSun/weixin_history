@@ -1178,7 +1178,7 @@ function fileExist(filename) {
 		fs.statSync(filename);
 		return true;
 	} catch (e) {
-		console.log(e);
+		console.log(filename + ' is not exist...');
 	}
 
 	return false;
@@ -1190,7 +1190,8 @@ function removeFile(filename) {
 		fs.statSync(filename);
 		fs.unlinkSync(filename);
 	} catch (e) {
-		console.log(e);
+		//console.log(e);
+		console.log('removeFile error, may be file is not exist OR remove error...');
 	}
 }
 

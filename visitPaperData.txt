@@ -1,0 +1,11 @@
+{
+  "count": 3,
+  "visitSuccess": 3,
+  "unVisitArray": [],
+  "visitSuccessArray": [
+    "http://mp.weixin.qq.com/s/D5RrVg51fFsLNuPE4P6KLg",
+    "http://mp.weixin.qq.com/s/D5RrVg51fFsLNuPE4P6KLg",
+    "http://mp.weixin.qq.com/s/i45TvClBriXeH2-HqahFlA"
+  ],
+  "visitFailedArray": []
+}

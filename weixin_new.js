@@ -1,4 +1,7 @@
 var currentPaperVisitLog = './visitLog/currentPaperVisitLog.txt';
+var visitPaperRuntimeFileFlag = './visitPaperProcessFlag.flag'
+var VisitPaperFile = './visitPaperData.txt';
+var WXPaperURLPrefix = 'http://mp.weixin.qq.com/s/';
 
 var log4js = require('log4js');
 log4js.configure({
@@ -55,7 +58,38 @@ module.exports = {
 		}
 
 		if (requestDetail.requestOptions.hostname == 'sgqweixin' || wgetHostName == true) {
-			if (requestDetail.requestOptions.path.indexOf('begin') != -1) {
+			if (requestDetail.requestOptions.path.indexOf('visitStart') != -1) {
+				saveDataToFile(visitPaperRuntimeFileFlag, "This file is the visit paper flag");
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				var beginLine = 'BeginSessionIndex=' + splitedStr[1];
+				dumpInfo(requestDetail.url);
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: beginLine
+					}
+				};
+			} else if (requestDetail.requestOptions.path.indexOf('visitFinish') != -1) {
+				removeFile(visitPaperRuntimeFileFlag);
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				var endLine = 'EndSessionIndex=' + splitedStr[1];
+				dumpInfo(requestDetail.url);
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: endLine
+					}
+				};
+			} else if (requestDetail.requestOptions.path.indexOf('begin') != -1) {
+				removeFile(visitPaperRuntimeFileFlag);
 				saveDataToFile(currentPaperVisitLog, JSON.stringify(new VisitLogClass()));
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
@@ -64,7 +98,7 @@ module.exports = {
 				dumpInfo('    ');
 				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  BEGIN SESSION ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
 				// saveDataToFileWithAppend('GZHInformation' + date.pattern("yyyy-MM-dd") + '.txt', beginLine);
-				saveDataToFileWithAppend('visitLog' + date.pattern("yyyy-MM-dd") + '.txt', requestDetail.url);
+				dumpInfo(requestDetail.url);
 
 				return {
 					response: {
@@ -236,6 +270,65 @@ module.exports = {
 						body: 'success'
 					}
 				};
+			} else if (requestDetail.requestOptions.path.indexOf('getVisitPaper') != -1) {
+				var date = new Date();
+				dumpInfo('    ');
+				dumpInfo('    ');
+				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  BEGIN VISIT PAPER <<<<<<<<<<<<<<<<<<<<<<<');
+				var paper = getUnVisitPaper();
+				if (paper == '') {
+					paper = 'NONE';
+				}
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: paper
+					}
+				};
+			} else if (requestDetail.requestOptions.path.indexOf('visitSuccess') != -1) {
+				dumpInfo(requestDetail.url);
+				var date = new Date();
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				handleVisitSuccess(splitedStr[1]);
+
+				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END VISIT BINDING : ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
+				dumpInfo('    ');
+				dumpInfo('    ');
+
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: 'success'
+					}
+				};
+			} else if (requestDetail.requestOptions.path.indexOf('visitFailed') != -1) {
+				dumpInfo(requestDetail.url);
+				var date = new Date();
+				var splitedStr = requestDetail.requestOptions.path.split('=');
+				handleVisitFailed(splitedStr[1]);
+
+				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END VISIT BINDING : ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
+				dumpInfo('    ');
+				dumpInfo('    ');
+
+
+				return {
+					response: {
+						statusCode: 200,
+						header: {
+							'content-type': 'text/html'
+						},
+						body: 'success'
+					}
+				};
 			}
 		}
 
@@ -287,27 +380,28 @@ module.exports = {
 		} else if (/mp\/getappmsgext/i.test(requestDetail.url)) { //当链接地址为公众号文章阅读量和点赞量时
 			return null;
 		} else if (/mp\/appmsg_comment/i.test(requestDetail.url)) {
-			dumpInfo(requestDetail.url);
-			//dumpInfo("开始获取评论信息");
+			var isVisitPaperProcess = fileExist(visitPaperRuntimeFileFlag);
 
-			var commentBody = responseDetail.response.body.toString();
-			if (commentBody != "") {
-				var data = JSON.parse(commentBody);
-				if (data != null) {
-					var commentList = data['elected_comment'];
-					if (commentList != null && commentList.length > 0) {
-						for (var objIndex in commentList) {
-							var content = commentList[objIndex]['content'];
-							if (content != null) {
-								log4js_papervisit.info("Comments=" + content);
+			if (isVisitPaperProcess) {
+				dumpInfo(requestDetail.url);
+				//dumpInfo("开始获取评论信息");
+
+				var commentBody = responseDetail.response.body.toString();
+				if (commentBody != "") {
+					var data = JSON.parse(commentBody);
+					if (data != null) {
+						var commentList = data['elected_comment'];
+						if (commentList != null && commentList.length > 0) {
+							for (var objIndex in commentList) {
+								var content = commentList[objIndex]['content'];
+								if (content != null) {
+									log4js_papervisit.info("Comments=" + content);
+								}
 							}
 						}
 					}
 				}
 			}
-			//log4js_papervisit.info(">>>>> END one paper visit <<<<<");
-			//log4js_papervisit.info("    ");
-			//log4js_papervisit.info("    ");
 
 			return null;
 		} else if (/s\?__biz/i.test(requestDetail.url) || /mp\/rumor/i.test(requestDetail.url)) { //当链接地址为公众号文章时（rumor这个地址是公众号文章被辟谣了）
@@ -322,18 +416,24 @@ module.exports = {
 				//var chineseContextRe = /[^\u4E00-\u9FA5]/g;
 				//var body = responseDetail.response.body.toString();
 				//var dumpStr = body.replace(chineseContextRe, '');
+
+				var isVisitPaperProcess = fileExist(visitPaperRuntimeFileFlag);
+
 				var body = responseDetail.response.body.toString();
 				var dumpStr = weixinHTML_ZH(body);
 				dumpInfo(dumpStr);
 				var paperTitle = getMsgTitle(body);
 				var data = keyWordRuleCheck(dumpStr, paperTitle);
 
-				//begin save the paper info
-				log4js_papervisit.info("    ");
-				log4js_papervisit.info("    ");
-				log4js_papervisit.info("<<<<< BEGIN one paper visit >>>>>");
-				log4js_papervisit.info("Title=" + paperTitle);
-				log4js_papervisit.info("Content=" + dumpStr);
+				if (visitPaperRuntimeFileFlag) {
+					//begin save the paper info
+					log4js_papervisit.info("    ");
+					log4js_papervisit.info("    ");
+					log4js_papervisit.info("<<<<< BEGIN one paper visit >>>>>");
+					log4js_papervisit.info("Title=" + paperTitle);
+					log4js_papervisit.info("URL=" + requestDetail.url);
+					log4js_papervisit.info("Content=" + dumpStr);
+				}
 
 				var util = require('util');
 				if (Object.keys(data).length > 0) {
@@ -348,7 +448,10 @@ module.exports = {
 					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
 					log.searchIndex = md5(log.publishTime + log.name + log.title);
 					log.url = requestDetail.url;
-					log4js_papervisit.info("Keyword=" + JSON.stringify(log.keyword));
+					if (visitPaperRuntimeFileFlag) {
+						log4js_papervisit.info("FindLog=" + data['findLog']);
+						log4js_papervisit.info("Keyword=" + JSON.stringify(log.keyword));
+					}
 
 					//save into file GZHInformation.txt
 					var date = new Date();
@@ -503,6 +606,7 @@ function keyWordRuleCheck(str, paperTitle) {
 		retData['commit'] = ['d7b41ce4d57a99a3ab8932cb1f4dc862-log.txt'];
 	}
 
+	retData['findLog'] = JSON.stringify(findLog);
 	dumpInfo("find key word list : " + JSON.stringify(findLog));
 	dumpInfo("find key word file : " + JSON.stringify(retData));
 
@@ -555,6 +659,14 @@ function CommitPhoneMessage() {
 	this.keyword = [];
 	this.noResource = true;
 	this.paperTitle = '';
+}
+
+function VisitPaperClass() {
+	var count = 0;
+	var visitSuccess = 0;
+	var unVisitArray = [];
+	var visitSuccessArray = [];
+	var visitFailedArray = [];
 }
 
 function hasVisitThePaper(filename, customIndex) {
@@ -914,6 +1026,119 @@ function hasContextBetweenSession(filename, sessionIndex) {
 	return visitContext;
 }
 
+//*** visit paper logic ****//
+function getUnVisitPaper() {
+	var fs = require('fs');
+	var visitPaper = new VisitPaperClass();
+	var dataSync = JSON.stringify(new VisitPaperClass());
+	try {
+		fs.statSync(VisitPaperFile);
+		dataSync = fs.readFileSync(VisitPaperFile, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+
+	visitPaper = JSON.parse(dataSync);
+	var retCardCode = '';
+	if (visitPaper.count > 0) {
+		if (visitPaper.unVisitArray.length > 0) {
+			retCardCode = visitPaper.unVisitArray[0];
+			if (retCardCode.indexOf('s/') != -1) {
+				retCardCode = retCardCode.split('s/')[1];
+			}
+			logger.info('有微信文章需要访问，返回需要访问文章的链接 : ' + retCardCode);
+		} else {
+			logger.info('');
+			logger.info('');
+			logger.info('没有文章需要访问, 已经访问成功 : ' + visitPaper.visitSuccess);
+			logger.info('');
+			logger.info('');
+		}
+	} else {
+		logger.error('No paper in database need to be visit...');
+	}
+
+	return retCardCode;
+}
+
+function handleVisitSuccess(paperIndex) {
+	var paperUrl = WXPaperURLPrefix + paperIndex;
+
+	var fs = require('fs');
+	var visitPaper = new VisitPaperClass();
+	var dataSync = JSON.stringify(new VisitPaperClass());
+	try {
+		fs.statSync(VisitPaperFile);
+		dataSync = fs.readFileSync(VisitPaperFile, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+	var findPaper = false;
+	visitPaper = JSON.parse(dataSync);
+	if (visitPaper.count > 0) {
+		for (var index in visitPaper.unVisitArray) {
+			if (visitPaper.unVisitArray[index] == paperUrl) {
+				findPaper = true;
+			}
+		}
+	} else {
+		logger.error('No Paper in database need to be visit...');
+	}
+
+	if (findPaper) {
+		logger.info('访问文章成功，移除文章URL : ' + paperUrl);
+	} else {
+		logger.error('访问文章成功，但是没有找到文章，有问题, URL : ' + paperUrl);
+	}
+
+	visitPaper.unVisitArray.remove(paperUrl);
+	visitPaper.visitSuccessArray.push(paperUrl);
+	visitPaper.visitSuccess = visitPaper.visitSuccess + 1;
+
+	saveDataToFile(VisitPaperFile, JSON.stringify(visitPaper, 2, 2));
+	logger.info('访问文章成功，并且成功更新数据库 : ' + visitPaper);
+}
+
+function handleVisitFailed(paperIndex) {
+	var paperUrl = WXPaperURLPrefix + paperIndex;
+
+	var fs = require('fs');
+	var visitPaper = new VisitPaperClass();
+	var dataSync = JSON.stringify(new VisitPaperClass());
+	try {
+		fs.statSync(VisitPaperFile);
+		dataSync = fs.readFileSync(VisitPaperFile, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+	var findPaper = false;
+	visitPaper = JSON.parse(dataSync);
+	if (visitPaper.count > 0) {
+		for (var index in visitPaper.unVisitArray) {
+			if (visitPaper.unVisitArray[index] == paperUrl) {
+				findPaper = true;
+			}
+		}
+	} else {
+		logger.error('No Paper in database need to be visit...');
+	}
+
+	if (findPaper) {
+		logger.info('访问文章失败，将文章从等待访问列表中移除，放入失败数据库，文章URL : ' + paperUrl);
+
+	} else {
+		logger.error('访问文章失败，没有在数据库中找到，有问题..., 文章URL : ' + paperUrl);
+	}
+
+	visitPaper.unVisitArray.remove(paperUrl);
+	visitPaper.visitFailedArray.push(paperUrl);
+
+	saveDataToFile(VisitPaperFile, JSON.stringify(visitPaper, 2, 2));
+	logger.info('访问文章 [[失败]]，并更新数据库成功，卡号 : ' + paperUrl);
+}
+
+//*** visit paper logic ***//
+
 function saveDataToFileWithAppend(filename, str) {
 	// var fs = require("fs");
 	// mkdir('./', 'visitLog');
@@ -938,6 +1163,28 @@ function saveDataToFile(filename, str) {
 		flag: 'a'
 	};
 	fs.writeFileSync(filename, str + '\n', options);
+}
+
+function fileExist(filename) {
+	var fs = require("fs");
+	try {
+		fs.statSync(filename);
+		return true;
+	} catch (e) {
+		console.log(e);
+	}
+
+	return false;
+}
+
+function removeFile(filename) {
+	var fs = require("fs");
+	try {
+		fs.statSync(filename);
+		fs.unlinkSync(filename);
+	} catch (e) {
+		console.log(e);
+	}
 }
 
 function getName(str) {
@@ -1016,6 +1263,19 @@ function mkdir(dirpath, dirname) {
 };
 
 
+Array.prototype.indexOf = function(val) {
+	for (var i = 0; i < this.length; i++) {
+		if (this[i] == val) return i;
+	}
+	return -1;
+};
+
+Array.prototype.remove = function(val) {
+	var index = this.indexOf(val);
+	if (index > -1) {
+		this.splice(index, 1);
+	}
+};
 
 Date.prototype.pattern = function(fmt) {
 	var o = {

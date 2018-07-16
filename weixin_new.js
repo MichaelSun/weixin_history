@@ -926,6 +926,13 @@ function replaceArrayItem(arryaObj, old, replace) {
 	}
 }
 
+function removeArrayItem(arryaObj, obj) {
+	var index = arryaObj.indexOf(old);
+	if (index > -1) {
+		arryaObj.splice(index, 1);
+	}
+}
+
 function getPhoneMacStatusString(phoneMac, status) {
 	return phoneMac + "-" + status;
 }
@@ -1091,7 +1098,7 @@ function handleVisitSuccess(paperIndex) {
 		logger.error('访问文章成功，但是没有找到文章，有问题, URL : ' + paperUrl);
 	}
 
-	visitPaper.unVisitArray.remove(paperUrl);
+	removeArrayItem(visitPaper.unVisitArray, paperUrl);
 	visitPaper.visitSuccessArray.push(paperUrl);
 	visitPaper.visitSuccess = visitPaper.visitSuccess + 1;
 
@@ -1130,7 +1137,7 @@ function handleVisitFailed(paperIndex) {
 		logger.error('访问文章失败，没有在数据库中找到，有问题..., 文章URL : ' + paperUrl);
 	}
 
-	visitPaper.unVisitArray.remove(paperUrl);
+	removeArrayItem(visitPaper.unVisitArray, paperUrl);
 	visitPaper.visitFailedArray.push(paperUrl);
 
 	saveDataToFile(VisitPaperFile, JSON.stringify(visitPaper, 2, 2));
@@ -1263,6 +1270,7 @@ function mkdir(dirpath, dirname) {
 };
 
 
+/**
 Array.prototype.indexOf = function(val) {
 	for (var i = 0; i < this.length; i++) {
 		if (this[i] == val) return i;
@@ -1276,6 +1284,7 @@ Array.prototype.remove = function(val) {
 		this.splice(index, 1);
 	}
 };
+**/
 
 Date.prototype.pattern = function(fmt) {
 	var o = {

@@ -1,11 +1,26 @@
 var XLSX = require("xlsx")
 const workbook = XLSX.readFile('data.xlsx');
+var visitPaperConfigFile = './paper_visit/visitPaper_keyword.txt';
+var visitPaperConfigMergeFile = './paper_visit/visitPaper_keyword_merge.txt';
+
+function VisitPaperObjClass() {
+	this.title = '';
+	this.url = '';
+	this.content = '';
+	this.findLog = [];
+	this.keyword = [];
+	this.comments = [];
+}
+
+function VisitPaperListClass() {
+	this.count = 0;
+	this.visitPaperInfoList = [];
+}
 
 
 function to_json(workbook) {
 	var result = {};
 	// 获取 Excel 中所有表名
-	var sheetNames = workbook.SheetNames;
 	workbook.SheetNames.forEach(function(sheetName) {
 		var worksheet = workbook.Sheets[sheetName];
 		result[sheetName] = XLSX.utils.sheet_to_json(worksheet);
@@ -28,6 +43,30 @@ function saveDataToFile(filename, str) {
 		flag: 'a'
 	};
 	fs.writeFileSync(filename, str + '\n', options);
+}
+
+function mergeCurFileToMergeFile() {
+	var visitPaperList = new VisitPaperListClass();
+	var visitPaperListData = readFileToString(visitPaperConfigMergeFile);
+	if (visitPaperListData != null && visitPaperListData != '') {
+		visitPaperList = JSON.parse(visitPaperListData);
+	}
+
+	var curVisitPaperList = new VisitPaperListClass();
+	var curVisitPaperListData = readFileToString(visitPaperConfigMergeFile);
+	if (curVisitPaperListData != null && curVisitPaperListData != '') {
+		curVisitPaperList = JSON.parse(curVisitPaperListData);
+	}
+
+	if (curVisitPaperList.count > 0) {
+		visitPaperList.count = visitPaperList.count + curVisitPaperList.count;
+		var index = 0;
+		while (index < curVisitPaperList.count) {
+			visitPaperList.visitPaperInfoList.push(curVisitPaperList.visitPaperInfoList[index]);
+		}
+	}
+
+	saveDataToFile(visitPaperConfigMergeFile, JSON.stringify(visitPaperList, 2, 2));
 }
 
 function excelToJsonFile(workbook, filename) {
@@ -55,6 +94,48 @@ function excelToJsonFile(workbook, filename) {
 		}
 	});
 
+	//add visitPaper_keyword_merge
+	var visitPaperList = new VisitPaperListClass();
+	var visitPaperListData = readFileToString(visitPaperConfigMergeFile);
+	if (visitPaperListData != null && visitPaperListData != '') {
+		visitPaperList = JSON.parse(visitPaperListData);
+	}
+	var index = 0;
+	while (index < visitPaperList.count) {
+		var visitPaperObj = visitPaperList.visitPaperInfoList[index];
+		if (visitPaperObj.keyword.length > 0 && visitPaperObj.comments.length > 0) {
+			for (var keyIndex in visitPaperObj.keyword) {
+				var key = visitPaperObj.keyword[keyIndex];
+				if (contentMap[key] != null) {
+					contentMap[key] = contentMap[key].concat(visitPaperObj.comments);
+				} else {
+					contentMap[key] = visitPaperObj.comments;
+				}
+			}
+		}
+	}
+
+	//add visitPaperConfigFile file content
+	visitPaperList = new VisitPaperListClass();
+	visitPaperListData = readFileToString(visitPaperConfigFile);
+	if (visitPaperListData != null && visitPaperListData != '') {
+		visitPaperList = JSON.parse(visitPaperListData);
+	}
+	index = 0;
+	while (index < visitPaperList.count) {
+		var visitPaperObj = visitPaperList.visitPaperInfoList[index];
+		if (visitPaperObj.keyword.length > 0 && visitPaperObj.comments.length > 0) {
+			for (var keyIndex in visitPaperObj.keyword) {
+				var key = visitPaperObj.keyword[keyIndex];
+				if (contentMap[key] != null) {
+					contentMap[key] = contentMap[key].concat(visitPaperObj.comments);
+				} else {
+					contentMap[key] = visitPaperObj.comments;
+				}
+			}
+		}
+	}
+
 	var saveStr = JSON.stringify(contentMap, 2, 2);
 	console.log(saveStr);
 
@@ -73,6 +154,7 @@ function excelToJsonFile(workbook, filename) {
 	}
 
 	saveDataToFile('./config/sendKeyMap-log.txt', JSON.stringify(sendKeyMap, 2, 2));
+	mergeCurFileToMergeFile();
 
 	console.log('  ');
 	console.log('  ');

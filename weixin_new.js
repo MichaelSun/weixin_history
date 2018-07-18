@@ -1,7 +1,9 @@
 var currentPaperVisitLog = './visitLog/currentPaperVisitLog.txt';
+var currentPaperVisitWithCommentLog = './paper_visit/currentPaperVisitLog.txt'
 var visitPaperRuntimeFileFlag = './visitPaperProcessFlag.flag'
 var VisitPaperFile = './visitPaperData.txt';
 var WXPaperURLPrefix = 'http://mp.weixin.qq.com/s/';
+var visitPaperKeywordFile = './paper_visit/visitPaper_keyword.txt';
 
 var log4js = require('log4js');
 log4js.configure({
@@ -294,6 +296,7 @@ module.exports = {
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				handleVisitSuccess(splitedStr[1]);
+				updateVisitPaperListInfo(visitPaperKeywordFile, currentPaperVisitWithCommentLog);
 
 				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END VISIT BINDING : ' + splitedStr[1] + " <<<<<<<<<<<<<<<<<<<<<<<");
 				dumpInfo('    ');
@@ -384,7 +387,12 @@ module.exports = {
 
 			if (isVisitPaperProcess) {
 				dumpInfo(requestDetail.url);
-				//dumpInfo("开始获取评论信息");
+
+				var saveData = new VisitPaperObjClass();
+				var dataStr = readFileToString(currentPaperVisitWithCommentLog);
+				if (dataStr != '' || dataStr != null) {
+					saveData = JSON.parse(dataStr);
+				}	
 
 				var commentBody = responseDetail.response.body.toString();
 				if (commentBody != "") {
@@ -395,12 +403,14 @@ module.exports = {
 							for (var objIndex in commentList) {
 								var content = commentList[objIndex]['content'];
 								if (content != null) {
-									log4js_papervisit.info("Comments=" + content);
+									saveData.comments.push(content);
 								}
 							}
 						}
 					}
 				}
+
+				saveDataToFile(currentPaperVisitWithCommentLog, JSON.stringify(saveData, 2, 2));
 			}
 
 			return null;
@@ -426,13 +436,12 @@ module.exports = {
 				var data = keyWordRuleCheck(dumpStr, paperTitle);
 
 				if (visitPaperRuntimeFileFlag) {
-					//begin save the paper info
-					log4js_papervisit.info("    ");
-					log4js_papervisit.info("    ");
-					log4js_papervisit.info("<<<<< BEGIN one paper visit >>>>>");
-					log4js_papervisit.info("Title=" + paperTitle);
-					log4js_papervisit.info("URL=" + requestDetail.url);
-					log4js_papervisit.info("Content=" + dumpStr);
+					var paper_data = new VisitPaperObjClass();
+					paper_data.title = paperTitle;
+					paper_data.url = requestDetail.url;
+					paper_data.content = dumpStr;
+
+					saveDataToFile(currentPaperVisitWithCommentLog, JSON.stringify(paper_data, 2, 2));
 				}
 
 				var util = require('util');
@@ -449,8 +458,15 @@ module.exports = {
 					log.searchIndex = md5(log.publishTime + log.name + log.title);
 					log.url = requestDetail.url;
 					if (visitPaperRuntimeFileFlag) {
-						log4js_papervisit.info("FindLog=" + data['findLog']);
-						log4js_papervisit.info("Keyword=" + JSON.stringify(log.keyword));
+						var paper_data = new VisitPaperObjClass();
+						var dataStr = readFileToString(currentPaperVisitWithCommentLog);
+						if (dataStr != '' || dataStr != null) {
+							paper_data = JSON.parse(dataStr);
+						}
+						paper_data.findLog = data['findLog'];
+						paper_data.keyword = data['keyword'];
+
+						saveDataToFile(currentPaperVisitWithCommentLog, JSON.stringify(paper_data, 2, 2));
 					}
 
 					//save into file GZHInformation.txt
@@ -667,6 +683,39 @@ function VisitPaperClass() {
 	var unVisitArray = [];
 	var visitSuccessArray = [];
 	var visitFailedArray = [];
+}
+
+function VisitPaperObjClass() {
+	this.title = '';
+	this.url = '';
+	this.content = '';
+	this.findLog = [];
+	this.keyword = [];
+	this.comments = [];
+}
+
+function VisitPaperListClass() {
+	this.count = 0;
+	this.visitPaperInfoList = [];
+}
+
+function updateVisitPaperListInfo(filename, currentVisitLogFile) {
+	var visitPaperList = new VisitPaperListClass();
+	var curObj = new VisitPaperObjClass();
+	var curData = readFileToString(currentVisitLogFile);
+	if (curData != null && curData != '') {
+		curObj = JSON.parse(curData);
+		var visitPaperListData = readFileToString(filename);
+		if (visitPaperListData != null && visitPaperListData != '') {
+			visitPaperList = JSON.parse(visitPaperListData);
+		}
+		visitPaperList.count = visitPaperList.count + 1;
+		visitPaperList.visitPaperInfoList.push(curObj);
+		saveDataToFile(filename, JSON.stringify(visitPaperList, 2, 2));
+		dumpInfo('更新了制定访问文件内容: \n' + JSON.stringify(curObj, 2, 2));
+	} else {
+		dumpInfo('当前访问文章有问题，忽略update');
+	}
 }
 
 function hasVisitThePaper(filename, customIndex) {
@@ -927,7 +976,7 @@ function replaceArrayItem(arryaObj, old, replace) {
 }
 
 function removeArrayItem(arryaObj, obj) {
-	var index = arryaObj.indexOf(old);
+	var index = arryaObj.indexOf(obj);
 	if (index > -1) {
 		arryaObj.splice(index, 1);
 	}
@@ -1163,7 +1212,7 @@ function saveDataToFile(filename, str) {
 		fs.statSync(filename);
 		fs.unlinkSync(filename);
 	} catch (e) {
-		console.log(e);
+		//console.log(e);
 	}
 	var options = {
 		encoding: 'utf8',

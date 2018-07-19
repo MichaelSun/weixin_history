@@ -22,7 +22,7 @@
   "戒指": "43090214c96798b912c62edba5d041bc-log.txt",
   "婚戒": "43090214c96798b912c62edba5d041bc-log.txt",
   "对戒": "43090214c96798b912c62edba5d041bc-log.txt",
-  "护肤": "1fbb0afc69ff46b636e4cc6b6af13bd7-log.txt",
+  "护肤": "b4ef243454f897ff0ddd9e63407ce34b-log.txt",
   "皮肤": "1fbb0afc69ff46b636e4cc6b6af13bd7-log.txt",
   "礼物": "ed450868ef1754c20fe917a8c42bd412-log.txt",
   "送礼": "ed450868ef1754c20fe917a8c42bd412-log.txt",
@@ -151,5 +151,10 @@
   "健身阻碍，不运动，不坚持": "048696ef24639d46f3b4d1aed89d9e78-log.txt",
   "浪漫的事": "23b5d312ff4b92b66264d989820a39ac-log.txt",
   "难忘的事": "23b5d312ff4b92b66264d989820a39ac-log.txt",
-  "爱情故事": "23b5d312ff4b92b66264d989820a39ac-log.txt"
+  "爱情故事": "23b5d312ff4b92b66264d989820a39ac-log.txt",
+  "美容": "53b4b807fb3570b13d95509de71080be-log.txt",
+  "皮肤护理": "7933b0ce7287119a0b441705412ab2bc-log.txt",
+  "化妆品": "6c8a5c320eb437a7d67446dc0dc3856b-log.txt",
+  "考研": "45bb403e6f6aeb6192eb4e337d4aa9fe-log.txt",
+  "读研": "6e173b3789c28f34726fdabfcf4e4df3-log.txt"
 }

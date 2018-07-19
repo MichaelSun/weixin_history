@@ -1,7 +1,7 @@
 var XLSX = require("xlsx")
 const workbook = XLSX.readFile('data.xlsx');
 var visitPaperConfigFile = './paper_visit/visitPaper_keyword.txt';
-var visitPaperConfigMergeFile = './paper_visit/visitPaper_keyword_merge.txt';
+var visitPaperConfigMergeFile = './config/visitPaper_keyword_merge.txt';
 
 function VisitPaperObjClass() {
 	this.title = '';
@@ -17,6 +17,18 @@ function VisitPaperListClass() {
 	this.visitPaperInfoList = [];
 }
 
+function readFileToString(fileFullPath) {
+	var fs = require('fs');
+	var retData = "";
+	try {
+		fs.statSync(fileFullPath);
+		retData = fs.readFileSync(fileFullPath, "utf8");
+	} catch (e) {
+		console.log(e);
+	}
+
+	return retData;
+}
 
 function to_json(workbook) {
 	var result = {};
@@ -63,6 +75,7 @@ function mergeCurFileToMergeFile() {
 		var index = 0;
 		while (index < curVisitPaperList.count) {
 			visitPaperList.visitPaperInfoList.push(curVisitPaperList.visitPaperInfoList[index]);
+			index = index + 1;
 		}
 	}
 
@@ -74,6 +87,7 @@ function excelToJsonFile(workbook, filename) {
 	var result = {};
 	var sheetNames = workbook.SheetNames;
 	var saveJsonStr = '';
+
 	workbook.SheetNames.forEach(function(sheetName) {
 		var worksheet = workbook.Sheets[sheetName];
 		result[sheetName] = XLSX.utils.sheet_to_json(worksheet);
@@ -113,6 +127,8 @@ function excelToJsonFile(workbook, filename) {
 				}
 			}
 		}
+
+		index = index + 1;
 	}
 
 	//add visitPaperConfigFile file content
@@ -134,6 +150,8 @@ function excelToJsonFile(workbook, filename) {
 				}
 			}
 		}
+
+		index = index + 1;
 	}
 
 	var saveStr = JSON.stringify(contentMap, 2, 2);
@@ -158,7 +176,13 @@ function excelToJsonFile(workbook, filename) {
 
 	console.log('  ');
 	console.log('  ');
-	console.log('>>>>>>>>>> 分文件保存关键字成功 <<<<<<<<<');
+	console.log('>>>>>>>>>> 本次导入的自定义访问文章关键字和评论如下，导入数量 : ' + visitPaperList.count + '个 <<<<<<<<<<<');
+	console.log(JSON.stringify(visitPaperList, 2, 2));
+
+
+	console.log('  ');
+	console.log('  ');
+	console.log('>>>>>>>>>> 分文件保存关键字成功，一共导入关键字 : ' + Object.keys(sendKeyMap).length + '个 <<<<<<<<<<');
 	console.log('  ');
 	console.log('  ');
 }

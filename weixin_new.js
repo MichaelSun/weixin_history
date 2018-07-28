@@ -2,7 +2,7 @@ var currentPaperVisitLog = './visitLog/currentPaperVisitLog.txt';
 var currentPaperVisitWithCommentLog = './paper_visit/currentPaperVisitLog.txt'
 var visitPaperRuntimeFileFlag = './visitPaperProcessFlag.flag'
 var VisitPaperFile = './visitPaperData.txt';
-var WXPaperURLPrefix = 'http://mp.weixin.qq.com/s/';
+var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 var visitPaperKeywordFile = './paper_visit/visitPaper_keyword.txt';
 
 var log4js = require('log4js');

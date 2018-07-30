@@ -1,7 +1,7 @@
 var VisitPaperFile = './visitPaperData.txt';
 var VisitPaperRAWData = './visitPaperRawData.txt';
 var VisitPaperCustomForceFile = "./paper_visit/customForceVisitPaper.txt";
-var WXPaperURLPrefix = 'http://mp.weixin.qq.com/s/';
+var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 
 
 Date.prototype.pattern = function(fmt) {

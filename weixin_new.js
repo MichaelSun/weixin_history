@@ -4,6 +4,7 @@ var visitPaperRuntimeFileFlag = './visitPaperProcessFlag.flag'
 var VisitPaperFile = './visitPaperData.txt';
 var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 var visitPaperKeywordFile = './paper_visit/visitPaper_keyword.txt';
+var VisitPaperCustomForceFile = "./paper_visit/customForceVisitPaper.txt";
 
 var log4js = require('log4js');
 log4js.configure({
@@ -213,7 +214,10 @@ module.exports = {
 			} else if (requestDetail.requestOptions.path.indexOf('phoneCommit') != -1) {
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
-				var message = handleCommitPhoneRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				var message = handleCommitPhoneRequest(VisitPaperCustomForceFile, splitedStr[1]);
+				if (message.noResource) {
+					message = handleCommitPhoneRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				}
 
 				dumpInfo('   ');
 				dumpInfo('   ');
@@ -239,7 +243,11 @@ module.exports = {
 				dumpInfo('::::::: begin handle commit success for URL = ' + requestDetail.requestOptions.path);
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
-				var handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				if ()
+				var handleStatus = handleCommitPhoneSuccessRequest(VisitPaperCustomForceFile, splitedStr[1]);
+				if (!handleStatus) {
+					handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				}
 
 				dumpInfo('   ');
 				dumpInfo('   ');

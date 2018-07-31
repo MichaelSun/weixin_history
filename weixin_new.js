@@ -214,9 +214,14 @@ module.exports = {
 			} else if (requestDetail.requestOptions.path.indexOf('phoneCommit') != -1) {
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
+				dumpInfo('首先尝试在 : ' + VisitPaperCustomForceFile + '，文件中找是否需要评论的文章');
 				var message = handleCommitPhoneRequest(VisitPaperCustomForceFile, splitedStr[1]);
 				if (message.noResource) {
-					message = handleCommitPhoneRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+					var paperFile = './visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt';
+					dumpInfo(VisitPaperCustomForceFile + ' 中没有找到需要评论的文章，在 ' + paperFile + " 中找需要评论的文章");
+					message = handleCommitPhoneRequest(paperFile, splitedStr[1]);
+				} else {
+					dumpInfo("文件 : " + VisitPaperCustomForceFile + ", 有需要评论的微信文章");
 				}
 
 				dumpInfo('   ');
@@ -243,7 +248,6 @@ module.exports = {
 				dumpInfo('::::::: begin handle commit success for URL = ' + requestDetail.requestOptions.path);
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
-				if ()
 				var handleStatus = handleCommitPhoneSuccessRequest(VisitPaperCustomForceFile, splitedStr[1]);
 				if (!handleStatus) {
 					handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);

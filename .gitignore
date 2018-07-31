@@ -1,5 +1,5 @@
 node_modules/*
-config/*
 testCode/*
 visitLog/*
 logs/*
+paper_visit/*.log

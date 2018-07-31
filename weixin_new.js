@@ -1016,22 +1016,6 @@ function loadCommitToArray(commitFileList) {
 	return retCommitArray;
 }
 
-function loadKeyWord() {
-	var filename = './config/keyword.txt';
-	const LineByLine = require('./readlinesyn');
-	var liner = new LineByLine();
-
-	liner.open(filename);
-	var theline = '';
-	while (!liner._EOF) {
-		theline += liner.next();
-	}
-
-	liner.close();
-
-	return theline.split(',');
-}
-
 function loadKeyWordToJsonObj() {;
 	var data = readFileToString('./config/keyword.txt');
 	var retJson = JSON.parse(data);

@@ -7,6 +7,7 @@
     "js-md5": "^0.7.3",
     "js-xlsx": "^0.8.22",
     "log4js": "^2.5.3",
+    "nodejieba": "^2.2.6",
     "xlsx": "^0.12.9"
   },
   "devDependencies": {},

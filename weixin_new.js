@@ -4,6 +4,7 @@ var visitPaperRuntimeFileFlag = './visitPaperProcessFlag.flag'
 var VisitPaperFile = './visitPaperData.txt';
 var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 var visitPaperKeywordFile = './paper_visit/visitPaper_keyword.txt';
+var VisitPaperCustomForceFile = "./paper_visit/customForceVisitPaper.txt";
 
 var log4js = require('log4js');
 log4js.configure({
@@ -213,7 +214,15 @@ module.exports = {
 			} else if (requestDetail.requestOptions.path.indexOf('phoneCommit') != -1) {
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
-				var message = handleCommitPhoneRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				dumpInfo('首先尝试在 : ' + VisitPaperCustomForceFile + '，文件中找是否需要评论的文章');
+				var message = handleCommitPhoneRequest(VisitPaperCustomForceFile, splitedStr[1]);
+				if (message.noResource) {
+					var paperFile = './visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt';
+					dumpInfo(VisitPaperCustomForceFile + ' 中没有找到需要评论的文章，在 ' + paperFile + " 中找需要评论的文章");
+					message = handleCommitPhoneRequest(paperFile, splitedStr[1]);
+				} else {
+					dumpInfo("文件 : " + VisitPaperCustomForceFile + ", 有需要评论的微信文章");
+				}
 
 				dumpInfo('   ');
 				dumpInfo('   ');
@@ -239,7 +248,10 @@ module.exports = {
 				dumpInfo('::::::: begin handle commit success for URL = ' + requestDetail.requestOptions.path);
 				var date = new Date();
 				var splitedStr = requestDetail.requestOptions.path.split('=');
-				var handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				var handleStatus = handleCommitPhoneSuccessRequest(VisitPaperCustomForceFile, splitedStr[1]);
+				if (!handleStatus) {
+					handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+				}
 
 				dumpInfo('   ');
 				dumpInfo('   ');
@@ -1006,22 +1018,6 @@ function loadCommitToArray(commitFileList) {
 	}
 
 	return retCommitArray;
-}
-
-function loadKeyWord() {
-	var filename = './config/keyword.txt';
-	const LineByLine = require('./readlinesyn');
-	var liner = new LineByLine();
-
-	liner.open(filename);
-	var theline = '';
-	while (!liner._EOF) {
-		theline += liner.next();
-	}
-
-	liner.close();
-
-	return theline.split(',');
 }
 
 function loadKeyWordToJsonObj() {;

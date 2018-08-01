@@ -476,7 +476,15 @@ module.exports = {
 							paper_data = JSON.parse(dataStr);
 						}
 						paper_data.findLog = data['findLog'];
-						paper_data.keyword = data['keyword'];
+
+						dumpInfo('访问visit paper，使用NLP进行文本关键字提取');
+						var nodejieba = require("nodejieba");
+						var nlpKeywordResult = nodejieba.extract(dumpStr, 10);
+						for (var index in nlpKeywordResult) {
+							var item = nlpKeywordResult[index];
+							paper_data.keyword.push(item['word']);
+						}
+						//paper_data.keyword = data['keyword'];
 
 						saveDataToFile(currentPaperVisitWithCommentLog, JSON.stringify(paper_data, 2, 2));
 					}

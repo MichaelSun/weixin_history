@@ -1,7 +1,7 @@
 var XLSX = require("xlsx")
 const workbook = XLSX.readFile('data.xlsx');
 var visitPaperConfigFile = './paper_visit/visitPaper_keyword.txt';
-var visitPaperConfigMergeFile = './paper_visit/visitPaper_keyword_merge.txt';
+var visitPaperConfigMergeFile = 'config/visitPaper_keyword_merge.txt';
 
 function VisitPaperObjClass() {
 	this.title = '';

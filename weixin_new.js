@@ -1,10 +1,10 @@
-var currentPaperVisitLog = './visitLog/currentPaperVisitLog.txt';
-var currentPaperVisitWithCommentLog = './paper_visit/currentPaperVisitLog.txt'
-var visitPaperRuntimeFileFlag = './visitPaperProcessFlag.flag'
-var VisitPaperFile = './visitPaperData.txt';
+var currentPaperVisitLog = './runtime/weixinNeedCommentPaper/currentPaperVisitLog.txt';
+var currentPaperVisitWithCommentLog = './runtime/externalPaperVisit/currentPaperVisitLog.txt'
+var visitPaperRuntimeFileFlag = './runtime/visitPaperProcessFlag.flag'
+var VisitPaperFile = './runtime/externalPaperVisitForKeyword.txt';
 var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
-var visitPaperKeywordFile = './paper_visit/visitPaper_keyword.txt';
-var VisitPaperCustomForceFile = "./paper_visit/customForceVisitPaper.txt";
+var visitPaperKeywordFile = './runtime/externalPaperVisit/visitPaper_keyword.txt';
+var VisitPaperCustomForceFile = "./runtime/customForceVisitPaper.txt";
 
 var log4js = require('log4js');
 log4js.configure({
@@ -14,7 +14,7 @@ log4js.configure({
 		},
 		ruleFile: {
 			type: 'dateFile',
-			filename: 'logs/weixin_',
+			filename: 'runtime/logs/weixin_',
 			pattern: 'yyyy-MM-dd.log',
 			maxLogSize: 10 * 1000 * 1000,
 			numBackups: 3,
@@ -22,7 +22,7 @@ log4js.configure({
 		},
 		commentFile: {
 			type: 'dateFile',
-			filename: 'paper_visit/weixin_visit-',
+			filename: 'runtime/logs/paper_visit/weixin_visit-',
 			pattern: 'yyyy-MM-dd.log',
 			maxLogSize: 10 * 1000 * 1000,
 			numBackups: 3,

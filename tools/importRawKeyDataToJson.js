@@ -1,6 +1,6 @@
-var VisitPaperFile = './visitPaperData.txt';
-var VisitPaperRAWData = './visitPaperRawData.txt';
-var VisitPaperCustomForceFile = "./paper_visit/customForceVisitPaper.txt";
+var VisitPaperFile = './runtime/externalPaperVisitForKeyword.txt';
+var VisitPaperRAWData = './externalData/visitPaperRawData.txt';
+var VisitPaperCustomForceFile = "./runtime/customForceVisitPaper.txt";
 var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 
 

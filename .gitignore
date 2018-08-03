@@ -1,5 +1,3 @@
 node_modules/*
 testCode/*
-visitLog/*
-logs/*
-paper_visit/*
+runtime/*

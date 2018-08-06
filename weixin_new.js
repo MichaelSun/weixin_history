@@ -121,7 +121,7 @@ module.exports = {
 				var visitContext = hasContextBetweenSession(currentPaperVisitLog, splitedStr[1]);
 				dumpInfo('visitContext = ' + JSON.stringify(visitContext));
 
-				var hasContainThisPaper = hasVisitThePaper('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', visitContext.contextMD5);
+				var hasContainThisPaper = hasVisitThePaper('./runtime/visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', visitContext.contextMD5);
 				if (hasContainThisPaper) {
 					dumpInfo("this paper has been visited by custom Index = " + visitContext.contextMD5 + ", so skip this paper");
 					visitContext.hasContext = false;
@@ -170,7 +170,7 @@ module.exports = {
 
 				//save commit log object
 				var visitLog = getLastMatchPaperContext(currentPaperVisitLog);
-				saveCommitObjList('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitLog.keyword, customIndex, visitLog.title);
+				saveCommitObjList('./runtime/visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', wxIndex, visitLog.keyword, customIndex, visitLog.title);
 
 				dumpInfo('>>>>>>>>>>>>>>>>>>>>>>>>>>>  END SESSION ' + splitedStr[0] + " <<<<<<<<<<<<<<<<<<<<<<<");
 				dumpInfo('    ');
@@ -217,7 +217,7 @@ module.exports = {
 				dumpInfo('首先尝试在 : ' + VisitPaperCustomForceFile + '，文件中找是否需要评论的文章');
 				var message = handleCommitPhoneRequest(VisitPaperCustomForceFile, splitedStr[1]);
 				if (message.noResource) {
-					var paperFile = './visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt';
+					var paperFile = './runtime/visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt';
 					dumpInfo(VisitPaperCustomForceFile + ' 中没有找到需要评论的文章，在 ' + paperFile + " 中找需要评论的文章");
 					message = handleCommitPhoneRequest(paperFile, splitedStr[1]);
 				} else {
@@ -250,7 +250,7 @@ module.exports = {
 				var splitedStr = requestDetail.requestOptions.path.split('=');
 				var handleStatus = handleCommitPhoneSuccessRequest(VisitPaperCustomForceFile, splitedStr[1]);
 				if (!handleStatus) {
-					handleStatus = handleCommitPhoneSuccessRequest('./visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
+					handleStatus = handleCommitPhoneSuccessRequest('./runtime/visitLog/needCommitWXPaper' + date.pattern("yyyy-MM-dd") + '.txt', splitedStr[1]);
 				}
 
 				dumpInfo('   ');

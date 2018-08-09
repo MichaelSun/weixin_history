@@ -6,6 +6,7 @@ var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 var visitPaperKeywordFile = './runtime/externalPaperVisit/visitPaper_keyword.txt';
 var VisitPaperCustomForceFile = "./runtime/customForceVisitPaper.txt";
 var ComposeCommentMapKeyFile = './config/sendComposeKeyMap-log.txt';
+var CommentMapKeyFile = './config/sendKeyMap-log.txt';
 
 var log4js = require('log4js');
 log4js.configure({
@@ -677,7 +678,7 @@ function keyWordRuleCheck(str, paperTitle) {
 
 		if (!composeKeyWordWork) {
 			dumpInfo('然后尝试普通关键字....');
-			var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
+			var contentText = fs.readFileSync(CommentMapKeyFile, 'utf-8');
 			var keyFileMap = JSON.parse(contentText);
 			for (var secondKey in keyFileMap) {
 				if (str.indexOf(secondKey) != -1) {
@@ -847,7 +848,7 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex, paperTitle) 
 
 	var find = false;
 	var commitFile = [];
-	var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
+	var contentText = fs.readFileSync(CommentMapKeyFile, 'utf-8');
 	var keyFileMap = JSON.parse(contentText);
 	for (var keyIndex in keyword) {
 		if (keyFileMap[keyword[keyIndex]] != null) {

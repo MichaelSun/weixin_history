@@ -2,6 +2,7 @@ var XLSX = require("xlsx")
 const workbook = XLSX.readFile('externalData/data.xlsx');
 var visitPaperConfigFile = './runtime/externalPaperVisit/visitPaper_keyword.txt';
 var visitPaperConfigMergeFile = './externalData/visitPaper_keyword_merge.txt';
+var commentMapKeyFile = './config/sendKeyMap-log.txt';
 
 function VisitPaperObjClass() {
 	this.title = '';
@@ -80,6 +81,26 @@ function mergeCurFileToMergeFile() {
 	}
 
 	saveDataToFile(visitPaperConfigMergeFile, JSON.stringify(visitPaperList, 2, 2));
+}
+
+function splitKeyword(keywordNeedSplited) {
+	var ret = keywordNeedSplited.split('/');
+	ret = splitedKeywordArrayBySplitedKey(ret, ';');
+	ret = splitedKeywordArrayBySplitedKey(ret, '，');
+	ret = splitedKeywordArrayBySplitedKey(ret, ',');
+	ret = splitedKeywordArrayBySplitedKey(ret, '；');
+
+	//console.log('分割关键字结果，原始关键字 : [[ ' + keywordNeedSplited + ' ]], 分离结果 : ' + JSON.stringify(ret));
+
+	return ret;
+}
+
+function splitedKeywordArrayBySplitedKey(arraySplited, splitedKey) {
+	var ret = [];
+	for (var index in arraySplited) {
+		ret = ret.concat(arraySplited[index].split(splitedKey));
+	}
+	return ret;
 }
 
 function excelToJsonFile(workbook, filename) {
@@ -161,7 +182,8 @@ function excelToJsonFile(workbook, filename) {
 	var sendKeyMap = {};
 	var MD5 = require('js-md5');
 	for (var key in contentMap) {
-		var fileNameArray = key.split('/');
+		//var fileNameArray = key.split('/');
+		var fileNameArray = splitKeyword(key);
 		var fileMd5Name = MD5(key) + '-log.txt';
 		saveDataToFile('./config/' + fileMd5Name, JSON.stringify(contentMap[key], 2, 2));
 		for (var i in fileNameArray) {
@@ -170,12 +192,12 @@ function excelToJsonFile(workbook, filename) {
 		}
 	}
 
-	saveDataToFile('./config/sendKeyMap-log.txt', JSON.stringify(sendKeyMap, 2, 2));
+	saveDataToFile(commentMapKeyFile, JSON.stringify(sendKeyMap, 2, 2));
 	mergeCurFileToMergeFile();
 
 	console.log('  ');
 	console.log('  ');
-	console.log('>>>>>>>>>> 分文件导入关键字成功, 共导入: [[' + count + ']] 个关键字 <<<<<<<<<');
+	console.log('>>>>>>>>>> 分文件导入关键字成功, 共导入: [[ ' + count + ' ]] 个关键字到 ' + commentMapKeyFile  + ' 文件 <<<<<<<<<<');
 	console.log('  ');
 	console.log('  ');
 }

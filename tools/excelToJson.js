@@ -3,6 +3,7 @@ const workbook = XLSX.readFile('externalData/data.xlsx');
 var visitPaperConfigFile = './runtime/externalPaperVisit/visitPaper_keyword.txt';
 var visitPaperConfigMergeFile = './externalData/visitPaper_keyword_merge.txt';
 var commentMapKeyFile = './config/sendKeyMap-log.txt';
+var composeCommentMapKeyFile = './config/sendComposeKeyMap-log.txt';
 
 function VisitPaperObjClass() {
 	this.title = '';
@@ -179,7 +180,9 @@ function excelToJsonFile(workbook, filename) {
 
 	//split json to files
 	var count = 0;
+	var composeCount = 0;
 	var sendKeyMap = {};
+	var composeSendKeyMap = {};
 	var MD5 = require('js-md5');
 	for (var key in contentMap) {
 		//var fileNameArray = key.split('/');
@@ -187,17 +190,24 @@ function excelToJsonFile(workbook, filename) {
 		var fileMd5Name = MD5(key) + '-log.txt';
 		saveDataToFile('./config/' + fileMd5Name, JSON.stringify(contentMap[key], 2, 2));
 		for (var i in fileNameArray) {
-			sendKeyMap[fileNameArray[i]] = fileMd5Name;
-			count = count + 1;
+			if (fileNameArray[i].indexOf('-') != -1) {
+				composeSendKeyMap[fileNameArray[i]] = fileMd5Name;
+				composeCount = composeCount + 1;
+			} else {
+				sendKeyMap[fileNameArray[i]] = fileMd5Name;
+				count = count + 1;
+			}
 		}
 	}
 
 	saveDataToFile(commentMapKeyFile, JSON.stringify(sendKeyMap, 2, 2));
+	saveDataToFile(composeCommentMapKeyFile, JSON.stringify(composeSendKeyMap, 2, 2));
 	mergeCurFileToMergeFile();
 
 	console.log('  ');
 	console.log('  ');
 	console.log('>>>>>>>>>> 分文件导入关键字成功, 共导入: [[ ' + count + ' ]] 个关键字到 ' + commentMapKeyFile  + ' 文件 <<<<<<<<<<');
+	console.log('>>>>>>>>>> 分文件导入组合关键字成功, 共导入: [[ ' + composeCount + ' ]] 个关键字到 ' + composeCommentMapKeyFile  + ' 文件 <<<<<<<<<<');
 	console.log('  ');
 	console.log('  ');
 }

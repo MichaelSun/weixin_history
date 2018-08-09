@@ -5,6 +5,7 @@ var VisitPaperFile = './runtime/externalPaperVisitForKeyword.txt';
 var WXPaperURLPrefix = 'https://mp.weixin.qq.com/s/';
 var visitPaperKeywordFile = './runtime/externalPaperVisit/visitPaper_keyword.txt';
 var VisitPaperCustomForceFile = "./runtime/customForceVisitPaper.txt";
+var ComposeCommentMapKeyFile = './config/sendComposeKeyMap-log.txt';
 
 var log4js = require('log4js');
 log4js.configure({
@@ -447,7 +448,7 @@ module.exports = {
 				var paperTitle = getMsgTitle(body);
 				var data = keyWordRuleCheck(dumpStr, paperTitle);
 
-				if (visitPaperRuntimeFileFlag) {
+				if (isVisitPaperProcess) {
 					var paper_data = new VisitPaperObjClass();
 					paper_data.title = paperTitle;
 					paper_data.url = requestDetail.url;
@@ -469,7 +470,7 @@ module.exports = {
 					log.searchTime = curTime.pattern("yyyy-MM-dd:hh-mm");
 					log.searchIndex = md5(log.publishTime + log.name + log.title);
 					log.url = requestDetail.url;
-					if (visitPaperRuntimeFileFlag) {
+					if (isVisitPaperProcess) {
 						var paper_data = new VisitPaperObjClass();
 						var dataStr = readFileToString(currentPaperVisitWithCommentLog);
 						if (dataStr != '' || dataStr != null) {
@@ -554,6 +555,7 @@ function weixinHTML_ZH(html_content) {
 	return dumpStr.replace(chineseContextRe, '');
 }
 
+
 function keyWordRuleCheck(str, paperTitle) {
 	var fs = require('fs');
 	var keyWordObj = loadKeyWordToJsonObj();
@@ -609,25 +611,92 @@ function keyWordRuleCheck(str, paperTitle) {
 	}
 
 	if (findCategory) {
-		var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
-		var keyFileMap = JSON.parse(contentText);
-		for (var secondKey in keyFileMap) {
-			if (str.indexOf(secondKey) != -1) {
-				findKey.push(secondKey);
-				if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
-					commitFile.push(keyFileMap[secondKey]);
+		dumpInfo('首先尝试组合关键词...');
+		var composeKeyWordWork = false;
+		var composeContentText = fs.readFileSync(ComposeCommentMapKeyFile, 'utf-8');
+		if (composeContentText != null && composeContentText != '') {
+			var composekeyFileMap = JSON.parse(composeContentText);
+			for (var secondKey in composekeyFileMap) {
+				var composeKeywordSplited = [];
+				if (secondKey.indexOf('-') != -1) {
+					composeKeywordSplited = secondKey.split('-');
+				} else {
+					composeKeywordSplited.push(secondKey);
 				}
 
-				findLog.push(secondKey);
-			}
-		}
+				var containAllKeyWord = false;
+				for (var index in composeKeywordSplited) {
+					if (str.indexOf(composeKeywordSplited[index]) != -1) {
+						containAllKeyWord = true;
+					} else {
+						containAllKeyWord = false;
+					}
+				}
 
-		if (findKey.length == 0 || commitFile.length == 0) {
-			for (var secondKey in keyFileMap) {
-				if (paperTitle.indexOf(secondKey) != -1) {
+				if (containAllKeyWord) {
 					findKey.push(secondKey);
 					if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
 						commitFile.push(keyFileMap[secondKey]);
+					}
+
+					findLog.push(secondKey);
+					composeKeyWordWork = true;
+				}
+			}
+
+			if (findKey.length == 0 || commitFile.length == 0) {
+				for (var secondKey in composekeyFileMap) {
+					var composeKeywordSplited = [];
+					if (secondKey.indexOf('-') != -1) {
+						composeKeywordSplited = secondKey.split('-');
+					} else {
+						composeKeywordSplited.push(secondKey);
+					}
+
+					var containAllKeyWord = false;
+					for (var index in composeKeywordSplited) {
+						if (paperTitle.indexOf(composeKeywordSplited[index]) != -1) {
+							containAllKeyWord = true;
+						} else {
+							containAllKeyWord = false;
+						}
+					}
+
+					if (containAllKeyWord) {
+						findKey.push(secondKey);
+						if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
+							commitFile.push(keyFileMap[secondKey]);
+						}
+
+						findLog.push(secondKey);
+						composeKeyWordWork = true;
+					}
+				}
+			}
+		}
+
+		if (!composeKeyWordWork) {
+			dumpInfo('然后尝试普通关键字....');
+			var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
+			var keyFileMap = JSON.parse(contentText);
+			for (var secondKey in keyFileMap) {
+				if (str.indexOf(secondKey) != -1) {
+					findKey.push(secondKey);
+					if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
+						commitFile.push(keyFileMap[secondKey]);
+					}
+
+					findLog.push(secondKey);
+				}
+			}
+
+			if (findKey.length == 0 || commitFile.length == 0) {
+				for (var secondKey in keyFileMap) {
+					if (paperTitle.indexOf(secondKey) != -1) {
+						findKey.push(secondKey);
+						if (commitFile.indexOf(keyFileMap[secondKey]) == -1) {
+							commitFile.push(keyFileMap[secondKey]);
+						}
 					}
 				}
 			}
@@ -776,17 +845,30 @@ function saveCommitObjList(filename, wxIndex, keyword, customIndex, paperTitle) 
 		console.log(e);
 	}
 
+	var find = false;
 	var commitFile = [];
 	var contentText = fs.readFileSync('config/sendKeyMap-log.txt', 'utf-8');
 	var keyFileMap = JSON.parse(contentText);
-	// dumpInfo('[[saveCommitObjList]] keyFileMap = ' + JSON.stringify(keyFileMap));
 	for (var keyIndex in keyword) {
 		if (keyFileMap[keyword[keyIndex]] != null) {
+			find = true;
 			if (commitFile.indexOf(keyFileMap[keyword[keyIndex]]) == -1) {
 				commitFile.push(keyFileMap[keyword[keyIndex]]);
 			}
 		}
 	}
+	if (find == false) {
+		contentText = fs.readFileSync(ComposeCommentMapKeyFile, 'utf-8');
+		keyFileMap = JSON.parse(contentText);
+		for (var keyIndex in keyword) {
+			if (keyFileMap[keyword[keyIndex]] != null) {
+				if (commitFile.indexOf(keyFileMap[keyword[keyIndex]]) == -1) {
+					commitFile.push(keyFileMap[keyword[keyIndex]]);
+				}
+			}
+		}
+	}
+
 	dumpInfo('[[saveCommitObjList]] commitFile = ' + JSON.stringify(commitFile));
 
 	commitObjList = JSON.parse(dataSync);
